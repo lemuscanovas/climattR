@@ -1,0 +1,40 @@
+Package: climattR
+Type: Package
+Title: Rapid climate extreme event attribution for regional and local areas
+Version: 0.0.1
+Depends: R (>= 4.0.0)
+Authors@R: c(
+    person("Marc", "Lemus-Canovas", , "mlemus@ub.edu", role = c("aut", "cre"), 
+    comment = c(ORCID = "0000-0002-0925-3827")))
+Description: Toolbox to rapid attribute extreme events using the flow analogs method in regional and local areas. This package also allows to perform an spatial downscaling using regression kriging to provide an attribution framework in local and mountainous areas using ERA5-Land.
+License: GPL (>= 3)
+Maintainer: Marc Lemus-Canovas <mlemus@ari.ad>
+URL: <https://lemuscanovas.github.io/synoptreg/>
+BugReports: https://github.com/lemuscanovas/synoptReg/issues
+Encoding: UTF-8
+LazyData: true
+Imports:
+    dplyr, 
+    ggplot2, 
+    lubridate, 
+    magrittr,
+    sf,
+    rnaturalearth,
+    rnaturalearthdata,
+    metR, 
+    raster, 
+    RNCEP, 
+    stringr, 
+    tidyr,
+    tibble,
+    kohonen,
+    future,
+    future.apply
+Suggests:
+    maptools,
+    ncdf4,
+    rgeos,
+    udunits2,
+    gridExtra
+NeedsCompilation: no
+RoxygenNote: 7.1.1

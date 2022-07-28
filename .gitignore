@@ -37,3 +37,13 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+wip
+.Rproj.user
+.Rhistory
+.RData
+
+inst/testdata
+inst/CITATION
+docs/*
+docs/
