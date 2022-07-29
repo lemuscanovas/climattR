@@ -9,23 +9,26 @@ library(gstat)   # The most popular R-Package for Kriging (imho)
 library(automap) # Automatize some (or all) parts of the gstat-workflow 
 library(sf)
 library(gam)
-
+sf_ob <- ne_countries(country = c("portugal","spain","france"),returnclass = "sf")
+extent <- c(-3,4,41,44)
+disagg = 10
 # Downscaling validation event --------------------------------------------
+
+spat_down <- function(x, event_dates, disagg)
 
 # Reading and preparing data ------------------------------------------------------------
 event_dates= seq(as.Date("2022-06-12"),as.Date("2022-06-21"), by = "day")
 
 t2m <- list.files(path = "inst/testdata/",pattern = "2m_t",full.names = T) %>% rast()
 datevent <- tidync_attr(x = t2m,level = NULL,detrend = F,scale = F,
-                      extent = NULL,aggregate = NULL,rotate = F,
+                      extent = NULL, aggregate = NULL,rotate = F,
                       event_dates =  event_dates,time_window = 0,save = F )$event %>%
-  mask(vect(ne_countries(country = c("portugal","spain","france"),returnclass = "sf")))
+  mask(vect(sf_ob))
 
 
 sample <- datevent[[1]] %>%
-  crop(c(-3,4,41,44)) %>%
   setNames("z")
-plot(sample)
+# plot(sample)
 
 x_coarse <- get_elev_raster(locations = raster::raster(sample),
                             prj = crs(sample),
@@ -38,19 +41,20 @@ x_fine <- get_elev_raster(locations = raster::raster(sample),
                           prj = crs(sample),
                           z = 7) %>% 
   rast() %>%
-  project(disagg(sample,10)) %>%
+  project(disagg(sample,disagg)) %>%
   mask(vect(ne_countries(continent = "europe",scale = 10, returnclass = "sf")))
-
-plot(x_coarse)
-plot(x_fine)
+# 
+# plot(x_coarse)
+# plot(x_fine)
 
 ## Downscaling event
-dates <- time(datevent)
+dates <- as_date(time(datevent))
 noms <- names(datevent)
 
-    # Downscaling -------------------------------------------------------------
+
+ # Downscaling -------------------------------------------------------------
 downscaling_dates <- function(ii){
-  dd <- as_date(dates[ii])
+  dd <- dates[ii]
   nn <- noms[ii] 
   x <- datevent[[ii]]
   names(x) <- "z"
@@ -96,7 +100,8 @@ downscaling_dates <- function(ii){
   return(down_var)
 }
 
-res <- pblapply(1:10,FUN = downscaling_dates) %>% rast()
+res <- pblapply(1:nlyr(datevent),FUN = downscaling_dates) %>% rast()
+
 # Downscaling factual i counterfactual ------------------------------------
 
 factual <- rast("01_counter_factual_spatanalogs/t2m_counterfactual_event_mean.nc") %>%
