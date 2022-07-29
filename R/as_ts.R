@@ -68,11 +68,11 @@ as_ts <- function(x, detrend = F,hour2day_fun = "mean", domain = NULL, sf_obj = 
   
   if(!is.null(domain)){
     domain <- ext(domain) %>% as.polygons()
-  o <- extract(dat,domain, fun = mean, na.rm = T ) %>%
+  o <- terra::extract(dat,domain, fun = mean, na.rm = T ) %>%
     t() %>% as.vector()
   }
   if(!is.null(sf_obj)){
-    o <- extract(dat,vect(sf_obj), fun = mean, na.rm = T ) %>%
+    o <- terra::extract(dat,vect(sf_obj), fun = mean, na.rm = T ) %>%
     t() %>% as.vector()
   }
   
