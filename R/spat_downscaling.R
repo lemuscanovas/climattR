@@ -19,9 +19,7 @@ t2m2 <- t2m %>% crop(extent)
 spat_down <- function(x, event_dates, disagg){
 
   # Reading and preparing data ------------------------------------------------------------
-  event_dates= seq(as.Date("2022-06-12"),as.Date("2022-06-21"), by = "day")
   
-  t2m <- list.files(path = "inst/testdata/",pattern = "2m_t",full.names = T) %>% rast()
   datevent <- tidync_attr(x = t2m,level = NULL,detrend = F,scale = F,
                         extent = NULL, aggregate = NULL,rotate = F,
                         event_dates =  event_dates,time_window = 0,save = F )$event
@@ -49,54 +47,56 @@ spat_down <- function(x, event_dates, disagg){
   dates <- as_date(time(datevent))
   noms <- names(datevent)
   
+  .downscaling_dates <- function(ii){
+    dd <- dates[ii]
+    nn <- noms[ii] 
+    xi <- datevent[[ii]]
+    names(xi) <- "z"
+    day_sf <- as.points(xi) %>% st_as_sf() %>%
+      cbind(st_coordinates(.))
+    
+    day_sf_ <- bind_cols(day_sf,
+                        terra::extract(x_coarse,
+                                       vect(day_sf)) %>% select(2) %>% 
+                          setNames("elev")) %>%
+      filter(!is.na(elev))
+    
+    target <- as.points(x_fine) %>% st_as_sf() %>%
+      cbind(st_coordinates(.)) %>% rename("elev" = 1)
+    
+    
+    regression <- gam(z~s(X)+s(Y)+s(elev),
+                      data = as.data.frame(day_sf_))
+    
+    step_regression <- step.Gam(regression,trace = F,
+                                scope=list("X"=~1+X+s(X,4)+s(X,6)+s(X,12),
+                                           "Y"=~1+Y+s(Y,4)+s(Y,6)+s(Y,12),
+                                           "elev"=~1+elev+s(elev,4)+s(elev,6)+s(elev,12))
+    )
+    
+    xx <- formula(step_regression)
+    
+    v_mod_OK <- automap::autofitVariogram(xx, as(day_sf_, "Spatial"))$var_model
+    
+    mod <- krige(
+      formula=formula(step_regression),
+      locations=as_Spatial(day_sf_),
+      newdata=as_Spatial(target),
+      model=v_mod_OK,
+      debug.level = 0)
+    
+    mod_r <- mod %>% as.data.frame() %>% rast(type = "xyz")
+    # plot(mod_r$var1.pred-273.15)
+    # plot(mod_r$var1.var)
+    down_var <- mod_r$var1.pred
+    time(down_var) <- dd
+    names(down_var) <- nn
+    return(down_var)
+  }
+  
+  
   res <- pblapply(1:nlyr(datevent),FUN = .downscaling_dates) %>% rast()
   return(res)
 }
 
 # Downscaling -------------------------------------------------------------
-.downscaling_dates <- function(ii){
-  dd <- dates[ii]
-  nn <- noms[ii] 
-  x <- datevent[[ii]]
-  names(x) <- "z"
-  day_sf <- as.points(x) %>% st_as_sf() %>%
-    cbind(st_coordinates(.))
-  
-  day_sf <- bind_cols(day_sf,
-                      terra::extract(x_coarse,
-                                     vect(day_sf)) %>% select(2) %>% 
-                        setNames("elev")) %>%
-    filter(!is.na(elev))
-  
-  target <- as.points(x_fine) %>% st_as_sf() %>%
-    cbind(st_coordinates(.)) %>% rename("elev" = 1)
-  
-  
-  regression <- gam(z~s(X)+s(Y)+s(elev),
-                    data = as.data.frame(day_sf))
-  
-  step_regression <- step.Gam(regression,trace = F,
-                              scope=list("X"=~1+X+s(X,4)+s(X,6)+s(X,12),
-                                         "Y"=~1+Y+s(Y,4)+s(Y,6)+s(Y,12),
-                                         "elev"=~1+elev+s(elev,4)+s(elev,6)+s(elev,12))
-  )
-  
-  xx <- formula(step_regression)
-  
-  v_mod_OK <- automap::autofitVariogram(xx, as(day_sf, "Spatial"))$var_model
-  
-  mod <- krige(
-    formula=formula(step_regression),
-    locations=as_Spatial(day_sf),
-    newdata=as_Spatial(target),
-    model=v_mod_OK,
-    debug.level = 0)
-  
-  mod_r <- mod %>% as.data.frame() %>% rast(type = "xyz")
-  # plot(mod_r$var1.pred-273.15)
-  # plot(mod_r$var1.var)
-  down_var <- mod_r$var1.pred
-  time(down_var) <- dd
-  names(down_var) <- nn
-  return(down_var)
-}
