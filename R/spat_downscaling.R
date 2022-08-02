@@ -9,11 +9,7 @@ library(gstat)   # The most popular R-Package for Kriging (imho)
 library(automap) # Automatize some (or all) parts of the gstat-workflow 
 library(sf)
 library(gam)
-sf_ob <- ne_countries(country = c("portugal","spain","france"),returnclass = "sf")
-extent <- c(-5,5,40,45)
-disagg = 2
 
-t2m2 <- t2m %>% crop(extent)
 # Downscaling validation event --------------------------------------------
 
 spat_down <- function(x, event_dates, disagg){
@@ -99,4 +95,3 @@ spat_down <- function(x, event_dates, disagg){
   return(res)
 }
 
-# Downscaling -------------------------------------------------------------
