@@ -10,7 +10,7 @@ library(automap) # Automatize some (or all) parts of the gstat-workflow
 library(sf)
 library(gam)
 sf_ob <- ne_countries(country = c("portugal","spain","france"),returnclass = "sf")
-extent <- c(-3,4,41,44)
+extent <- c(-5,5,40,45)
 disagg = 2
 
 t2m2 <- t2m %>% crop(extent)
@@ -20,7 +20,7 @@ spat_down <- function(x, event_dates, disagg){
 
   # Reading and preparing data ------------------------------------------------------------
   
-  datevent <- tidync_attr(x = t2m,level = NULL,detrend = F,scale = F,
+  datevent <- tidync_attr(x = x,level = NULL,detrend = F,scale = F,
                         extent = NULL, aggregate = NULL,rotate = F,
                         event_dates =  event_dates,time_window = 0,save = F )$event
   
@@ -83,7 +83,7 @@ spat_down <- function(x, event_dates, disagg){
       locations=as_Spatial(day_sf_),
       newdata=as_Spatial(target),
       model=v_mod_OK,
-      debug.level = 0)
+      debug.level = -1)
     
     mod_r <- mod %>% as.data.frame() %>% rast(type = "xyz")
     # plot(mod_r$var1.pred-273.15)
