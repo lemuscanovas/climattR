@@ -22,7 +22,7 @@ tidync_attr <- function(x, level = NULL, detrend = F, scale =  F, extent = NULL,
   nc_dayhour <- nc_dayhour[[l]] 
   }
   
-  ts_daily  = as_date(terra::time(nc_dayhour))
+  ts_daily  = as_date(terra::time(nc_dayhour)) %>% sort()
   ts_yearly = year(ts_daily) %>% unique()
   year_range <- c(first(ts_yearly),last(ts_yearly))
   
