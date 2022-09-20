@@ -28,6 +28,7 @@ analogs_searcher <- function(ts_wo_event, event, n = 20, split_year, metric = "r
   time_event = unique(event_df$time)
   
   # FUN <- match.fun(metric)
+  .range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
   
   .analog_extraction_all_period <- function(s){
     # Dates anàlogues a z500
@@ -38,8 +39,8 @@ analogs_searcher <- function(ts_wo_event, event, n = 20, split_year, metric = "r
                                event_df_ii, 
                                by = c("x","y")) %>%
       group_by(time) %>%
-      summarise(dist = FUN(var_hist,
-                           var_obj),
+      summarise(dist = .range01(FUN(var_hist,
+                           var_obj)),
                 .groups = "drop") %>%
       ungroup() %>%
       arrange(dist) %>%
@@ -57,8 +58,8 @@ analogs_searcher <- function(ts_wo_event, event, n = 20, split_year, metric = "r
                                event_df_ii, 
                                by = c("x","y")) %>%
       group_by(time,period) %>%
-      summarise(dist = FUN(var_hist,
-                           var_obj),
+      summarise(dist = .range01(FUN(var_hist,
+                           var_obj)),
                 .groups = "drop") %>%
       group_by(period) %>%
       arrange(dist) %>%
