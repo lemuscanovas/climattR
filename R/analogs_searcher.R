@@ -39,13 +39,16 @@ analogs_searcher <- function(ts_wo_event, event, n = 20, split_year, metric = "r
                                event_df_ii, 
                                by = c("x","y")) %>%
       group_by(time) %>%
-      summarise(dist = .range01(FUN(var_hist,
-                           var_obj)),
+      summarise(dist = FUN(var_hist,
+                           var_obj),
                 .groups = "drop") %>%
       ungroup() %>%
       arrange(dist) %>%
       slice(1:n) %>%
       mutate(time_obj = as_date(time_event[s])) %>%
+      group_by(time_obj) %>%
+      mutate(dist = .range01(dist, na.rm = T)) %>%
+      ungroup() %>%
       select(time_obj, time, dist)  
   }
   
@@ -58,14 +61,17 @@ analogs_searcher <- function(ts_wo_event, event, n = 20, split_year, metric = "r
                                event_df_ii, 
                                by = c("x","y")) %>%
       group_by(time,period) %>%
-      summarise(dist = .range01(FUN(var_hist,
-                           var_obj)),
+      summarise(dist = FUN(var_hist,
+                           var_obj),
                 .groups = "drop") %>%
       group_by(period) %>%
       arrange(dist) %>%
       slice(1:n) %>%
       ungroup() %>%
       mutate(time_obj = as_date(time_event[s])) %>%
+      group_by(time_obj) %>%
+      mutate(dist = .range01(dist, na.rm = T)) %>%
+      ungroup() %>%
       select(time_obj, time, dist, period)  
   }
   
