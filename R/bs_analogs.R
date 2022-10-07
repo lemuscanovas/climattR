@@ -159,7 +159,7 @@ bs_analogs<- function(x, analogs_subperiods,
       dplyr::select(sim_bs_factual, 
                sim,time_obj, dist, var, period)) %>%
     group_by(time_obj) %>%
-    mutate(dist = .range01(dist,na.rm = T)) %>%
+    # mutate(dist = .range01(dist,na.rm = T)) %>%
     group_by(time_obj,sim,period) %>%
     mutate(var = ifelse(exists("conversion_FUN"), conversion_FUN(var),var),
            var = ifelse(exists("ref_mean"), var - pull(ref_mean,1),var)) %>%
