@@ -5,9 +5,9 @@ library(terra)
 library(scales)
 
 bs_analogs<- function(x, analogs_subperiods,
-                      detrend = F, n = 1000, replace = T, anom = NULL, 
+                      detrend = F,k=2, n = 1000, replace = T, anom = NULL, 
                       ref_period = NULL, hour2day_fun = "mean",
-                      event_fun,conversion_fun ){
+                      event_fun,conversion_fun,cl = 1 ){
   
   event_FUN <- match.fun(FUN = event_fun)
 
@@ -18,7 +18,7 @@ bs_analogs<- function(x, analogs_subperiods,
   # Reading analogs dates and VOI nc ----------------------------------------
   dat <- x %>%
     rename("var" = 2)
-    
+
   time_dat <- as_date(dat$time)
   
   
@@ -29,7 +29,7 @@ bs_analogs<- function(x, analogs_subperiods,
   # If hourly, converts to daily
   if(length(unique(dat$time)) != length(unique(time_dat))){
     if(hour2day_fun != "mean"){
-      hour2day_FUN <- match.fun(FUN = hour2day_fun)
+      hour2day_FUN <- match.fun(FUN = hour2day_fun, na.rm = T)
       dat <- dat %>%
         group_by(time) %>%
         summarise(var = hour2day_FUN(var)) %>%
@@ -37,53 +37,26 @@ bs_analogs<- function(x, analogs_subperiods,
     }
     dat <- dat %>%
       group_by(time) %>%
-      summarise(var = mean(var)) %>%
+      summarise(var = mean(var, na.rm = T)) %>%
       ungroup()
   }    
   
   
   if(isTRUE(detrend)){
-    # linear detrend
-    dat_yr_mean <- dat %>% 
-      group_by(year(time)) %>%
-      summarise(var = mean(var))
-    
-    lyrs <- 1:nrow(dat_yr_mean)
-    
-    .remove_slope <- function(x) { 
-      m <- lm(x ~ lyrs) 
-      rm_slope <- residuals(m) + predict(m)[round(length(lyrs)/2)+1] # elimina slope
-      return(rm_slope)
+    detrend_pracma <- function(y, k) {
+      fit <- polyfit(seq_along(y), y, k)
+      y_pred <- polyval(fit, seq_along(y))
+      y - y_pred
     }
-    
-    # remove slope from yearly time series
-    dat_yr_rm_slope <- lapply(dat_yr_mean, .remove_slope)$var
-    # getting slope for each year
-    slope_yr <- dat_yr_mean$var - dat_yr_rm_slope
-    # remove slope from daily ts
-    yrs <- unique(year(time_dat))
-    ind <- seq_along(yrs)
-    
-    .detrend_fun <-  function(ii){
-      ind_yr <- which(year(time_dat)==yrs[ii])
-      selyr_dat <- slice(dat, ind_yr)
-      selyr_dat_slope <- slope_yr[ii]
-      selyr_dat_detrended <- mutate(selyr_dat, var = var - selyr_dat_slope)
-      
-      return(selyr_dat_detrended)
-    }
-    
-    # detrended
-    dat <- lapply(ind, .detrend_fun) %>% bind_rows()
+    dat <- dat %>% na.omit() %>% mutate(var = detrend_pracma(var, k = k))
   }
   
   if(isTRUE(anom) & length(ref_period == 2)){
   ref_mean <- dat %>% 
     filter(year(time) >= ref_period[1], year(time) <= ref_period[2]) %>%
-    summarise(ref_mean = mean(var),
+    summarise(ref_mean = mean(var, na.rm = T),
               ref_mean = ifelse(is.function(conversion_fun), conversion_FUN(ref_mean),ref_mean))
   
-
     }else if(isFALSE(anom)){
       
     } else if(isTRUE(anom) & is.null(ref_period)){
@@ -97,72 +70,46 @@ bs_analogs<- function(x, analogs_subperiods,
   
   # to select first period (factual)
   yr_split <- analogs_subperiods$period %>% 
-    str_sub(start = -4,end = -1) %>% 
-    as.numeric() %>% 
-    min %>% 
-    as.character()
+    unique() 
   
-  # selecting counterfactual analogs (past)
-  counter <- inner_join(analogs_subperiods, dat, by = "time") %>%
-    filter(str_detect(period, yr_split)) %>% 
+  # selecting n analogs per period 
+  sim_bs_l <- list()
+  for(ii in seq_along(yr_split)){
+    
+  dat_subset <- inner_join(analogs_subperiods, dat, by = "time") %>%
+    filter(str_detect(period, (yr_split %>% str_sub(1,4))[ii])) %>% 
     relocate(period, .after = time)
   
-  
-  bootstrap_counter <- function(x){
-    cases <- counter %>% group_by(time_obj) %>%
+  bootstrap <- function(x){
+    cases <- dat_subset %>% group_by(time_obj) %>%
       slice_sample(n = 1,replace = replace) %>%
       mutate(sim = paste0("sim",x))
   }
   
-  message(paste0("bootstrapping the event ", n," times in a counterfactual world:"))
+  message(paste0("bootstrapping the event ", n," times in the ", yr_split[ii], ":"))
   
-  sim_bs_counter <- pbapply::pblapply(1:n, bootstrap_counter) %>% 
+  sim_bs_l[[ii]] <- pbapply::pblapply(1:n, bootstrap, cl = cl) %>% 
                 bind_rows()
 
-  
-  # FACTUAL CALC (PRESENT)-----------------------------------------------------
-  
-  yr_split <- analogs_subperiods$period %>% 
-    str_sub(start = -4,end = -1) %>% 
-    as.numeric() %>% 
-    min %>% sum(1) %>%
-    as.character()
-  
-  # selecting counterfactual analogs
-  factual <- inner_join(analogs_subperiods, dat, by = "time") %>%
-    filter(str_detect(period, yr_split)) %>% 
-    relocate(period, .after = time)
-  
-  
-  bootstrap_factual <- function(x){
-    cases <- factual %>% group_by(time_obj) %>%
-      slice_sample(n = 1,replace = replace) %>%
-      mutate(sim = paste0("sim",x))
   }
   
-  message(paste0("bootstrapping the event ", n," times in a factual world:"))
-  
-  sim_bs_factual <- pbapply::pblapply(1:n, bootstrap_factual) %>% 
-                bind_rows()
-  
-  
-  
+  sim_bs <- bind_rows(sim_bs_l)
+ 
   
   # COMPUTING STATISTICAL SIGN OF BOOTSTRAP  --------------------------------
   
   .range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
   
   
-  join_bootstraps <- sim_bs_counter %>% 
+  join_bootstraps <- sim_bs %>% 
     dplyr::select(sim,time_obj, dist, var,period) %>%
-   bind_rows(
-      dplyr::select(sim_bs_factual, 
-               sim,time_obj, dist, var, period)) %>%
-    group_by(time_obj) %>%
+    # group_by(time_obj) %>%
     # mutate(dist = .range01(dist,na.rm = T)) %>%
     group_by(time_obj,sim,period) %>%
-    mutate(var = ifelse(exists("conversion_FUN"), conversion_FUN(var),var),
-           var = ifelse(exists("ref_mean"), var - pull(ref_mean,1),var)) %>%
+    summarise(var = ifelse(exists("conversion_FUN"), conversion_FUN(var),var),
+           var = ifelse(exists("ref_mean"), var - pull(ref_mean,1),var),
+           dist = mean(dist),
+           var = var,.groups = "drop") %>%
     ungroup()
   
   # mean and sd of RMSD or Euclid dist, 
@@ -174,9 +121,10 @@ bs_analogs<- function(x, analogs_subperiods,
               var_mean = mean(var),
               var_median = median(var),
               var_sd = sd(var),
-              .groups = "drop")
+              .groups = "drop") %>%
+    ungroup()
   
-  
+  # mitjana anomalia de cada dia analeg
   # ttest of metric distance and var
   # summary2_bootstrap_daily <- join_bootstraps %>%
   #   pivot_wider(
@@ -199,12 +147,12 @@ bs_analogs<- function(x, analogs_subperiods,
   dat_days_event <- dat %>% 
     filter(time %in% unique(analogs_subperiods$time_obj)) %>%
     group_by(time) %>%
-    mutate(value = ifelse(exists("conversion_FUN"), conversion_FUN(var),var),
-           value = ifelse(exists("ref_mean"), value - pull(ref_mean,1),value)) %>%
+    summarise(value = ifelse(exists("conversion_FUN"), conversion_FUN(var),var),
+           value = ifelse(exists("ref_mean"), value - pull(ref_mean,1),value),.groups = "drop") %>%
     ungroup() %>%
-    rename(time_obj = time) %>%
-    select(-var)
-    
+    rename(time_obj = time) 
+  
+
   return(list(observed = dat_days_event,
               bootstrap_simulation = join_bootstraps,
               summary_bs = summary1_bootstrap_daily))

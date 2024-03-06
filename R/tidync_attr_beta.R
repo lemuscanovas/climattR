@@ -4,8 +4,8 @@ library(terra)
 library(pbapply)
 
 
-tidync_attr <- function(x, level = NULL, detrend = F, scale =  F, extent = NULL, aggregate = NULL, 
-                        rotate = F,event_dates, time_window, save){
+tidync_attr <- function(x, level = NULL, detrend = F,k=2, scale =  F, extent = NULL, aggregate = NULL, 
+                        rotate = F,event_dates, time_window = NULL,analog_months, save){
 
   # Reading analogs dates and VOI nc ----------------------------------------
   if(class(x)[1] == "SpatRaster"){
@@ -36,10 +36,11 @@ tidync_attr <- function(x, level = NULL, detrend = F, scale =  F, extent = NULL,
   event_yr = year(event_dates[1])
   yr_seq <- seq(year_range[1],year_range[2]) 
   
-  seq_event <- seq(min(as_date(event_dates))-time_window, 
-           max(as_date(event_dates))+time_window, 
-           by = "day")
+  # seq_event <- seq(min(as_date(event_dates))-time_window, 
+  #          max(as_date(event_dates))+time_window, 
+  #          by = "day")
   
+  if(!is.null(time_window)){
   .time_windows = function(x){
     seq(min(as_date(event_dates))-time_window, 
         max(as_date(event_dates))+time_window, 
@@ -47,9 +48,21 @@ tidync_attr <- function(x, level = NULL, detrend = F, scale =  F, extent = NULL,
       str_sub(start = -5,end = -1) %>%
       str_c(x,sep = "-") %>% 
       as.vector()
+    }
+    time_window_an <-  sapply(yr_seq, FUN = .time_windows) %>% mdy()
+
   }
+    
+    if(is.null(time_window) & !is.null(analog_months )){
+      
+      dates <- seq(as_date(paste0(year_range[1],"-01-01")), 
+          as_date(paste0(year_range[2],"-12-31")), 
+          by = "day")
+      mo = which(month(dates) %in% analog_months)
+      
+      time_window_an <- dates[mo]
+    }
   
-  time_window_an <-  sapply(yr_seq, FUN = .time_windows) %>% mdy()
   
   message("Resampling and cropping full time series. Hourly data converted to daily.")
   message("It can take a while...")
@@ -79,61 +92,73 @@ tidync_attr <- function(x, level = NULL, detrend = F, scale =  F, extent = NULL,
   }
   
   time_dy <- as_date(time_all$time) %>% unique()
+  time(nc_timeseries_dm_an) <- time_dy
+ 
   if(isTRUE(detrend)){
-    # linear detrend
-    message("Starting to detrend the full time series")
-    yr <- as.factor(year(time_dy))
-    nc_timeseries_dm_an_yr <- tapp(nc_timeseries_dm_an,yr,"mean")
-     
-    lyrs <- 1:nlyr(nc_timeseries_dm_an_yr)
-    
-    .remove_slope <- function(x) { 
-      m <- lm(x ~ lyrs) 
-      rm_slope <- residuals(m) + predict(m)[round(lyrs/2)+1] # valor mig per treure trend
-      # elimina slope
-      return(rm_slope)
+    detrend_pracma <- function(y, k) {
+      fit <- polyfit(seq_along(y), y, k)
+      y_pred <- polyval(fit, seq_along(y))
+      y - y_pred
     }
     
-    # remove slope from yearly time series
-    nc_timeseries_dm_an_yr_rm_slope <- app(nc_timeseries_dm_an_yr, .remove_slope) 
-    
-    # getting slope for each year
-    slope_yr <- nc_timeseries_dm_an_yr - nc_timeseries_dm_an_yr_rm_slope
-    
-    # remove slope from daily ts
-    yrs <- unique(year(time_dy))
-    ind <- seq_along(yrs)
-    
-    .detrend_fun <-  function(ii){
-      ind_yr <- which(year(time_dy)==yrs[ii])
-      selyr_ncfull_ts <- nc_timeseries_dm_an[[ind_yr]]
-      selyr_ncfull_slope <- slope_yr[[ii]]
-      selyr_ncfull_detrended <- selyr_ncfull_ts - selyr_ncfull_slope
-      
-      return(selyr_ncfull_detrended)
-    }
-    
-    # detrended
-    nc_timeseries_dm_an <- pblapply(ind, .detrend_fun) %>% rast()
+    nc_timeseries_dm_an <- app(nc_timeseries_dm_an, detrend_pracma,k=k)
+    # dat <- c(dat[[1]],dat)
   }
   
   if(isTRUE(scale)){
-    nc_timeseries_dm_an <- scale(nc_timeseries_dm_an)
+    nc_timeseries_dm_an <- app(nc_timeseries_dm_an,scale.default)
   }
   
   time4analogs <- unique(time_all$time)
   nc_event_dm_an <- nc_timeseries_dm_an[[which(time4analogs %in% as_date(event_dates))]]
   
   # Excluding event dates and window dates of the event
+  
+  if(!is.null(time_window)){
   windows_event <- seq(min(as_date(event_dates))-time_window, 
                        max(as_date(event_dates))+time_window, 
                        by = "day")
+  }
+  
+  if(is.null(time_window) & !is.null(analog_months )){
+    
+    dates <- seq(as_date(paste0(year_range[1],"-01-01")), 
+                 as_date(paste0(year_range[2],"-12-31")), 
+                 by = "day")
+    mo = which(month(dates) %in% analog_months)
+    monthly_dates <- dates[mo]
+    
+    # tenim un episodi que abraça dos anys?
+    dos_anys <- ifelse(analog_months %in% c(12,1), T,F)
+    if(sum(dos_anys)> 1){
+      event_yr <-  c(event_yr-1,event_yr)
+      windows_event <- seq.Date(as_date(paste0(event_yr[1],"-",analog_months[1],"-01")), 
+                                as_date(paste0(event_yr[2],"-",analog_months[length(analog_months)],"-31")), "day")
+    } else{
+      windows_event <- seq.Date(as_date(paste0(event_yr,"-",analog_months[1],"-01")),
+                                as_date(paste0(event_yr,"-",analog_months[length(analog_months)],"-31")), "day")
+    }
+    
+  }
+  # windows_event <- seq(min(as_date("2022-06-01")), 
+  #                      max(as_date("2022-08-31")), 
+  #                      by = "day")
+  
+  if(detrend == T){
+    nc_timeseries_dm_an <- nc_timeseries_dm_an[[which(!time4analogs %in% windows_event)]]
+    time_all <- time4analogs[which(!time4analogs %in% windows_event)]
+    
+  } else{
   
   nc_timeseries_dm_an <- nc_timeseries_dm_an[[which(!time4analogs %in% windows_event)]]
-  
   time_all <- time4analogs[which(!time4analogs %in% windows_event)]
-  terra::time(nc_timeseries_dm_an) <- as.POSIXlt(unique(time_all))
+  }
+  
+  terra::time(nc_timeseries_dm_an) <- as.POSIXlt(as_date(time_all))
+  names(nc_timeseries_dm_an) <- as.POSIXlt(as_date(time_all))
+  
   terra::time(nc_event_dm_an) <- as.POSIXlt(as_date(event_dates))
+  names(nc_event_dm_an) <- as.POSIXlt(as_date(event_dates))
   
   if(isTRUE(save)){
     folder_name <- "00_data4analogs"
