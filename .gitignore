@@ -45,6 +45,8 @@ wip
 .Rhistory
 .RData
 
+discarded/
+
 inst/testdata
 inst/CITATION
 docs/*
