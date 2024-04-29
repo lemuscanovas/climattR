@@ -4,8 +4,9 @@ library(terra)
 library(pbapply)
 
 
-tidync_attr <- function(x, level = NULL, detrend = F,k=2, scale =  F, extent = NULL, aggregate = NULL, 
-                        rotate = F,event_dates, time_window = NULL,analog_months, save){
+prepare_data <- function(x, level = NULL, event_dates,
+                         time_window = 31,analog_months = NULL,
+                         detrend = F,k= 2, scale = F){
 
   # Reading analogs dates and VOI nc ----------------------------------------
   if(class(x)[1] == "SpatRaster"){
@@ -64,32 +65,15 @@ tidync_attr <- function(x, level = NULL, detrend = F,k=2, scale =  F, extent = N
     }
   
   
-  message("Resampling and cropping full time series. Hourly data converted to daily.")
-  message("It can take a while...")
+  message("Hourly data converted to daily.")
   yr_seq <-  yr_seq[!yr_seq %in% event_yr]
   
   time_all <- filter(ts_nc, time %in% time_window_an)
   nc_timeseries_dm_an <- nc_dayhour[[time_all$id]] 
   
-  if(isTRUE(rotate)){
-    nc_timeseries_dm_an <- terra::rotate(nc_timeseries_dm_an)
-  } 
-  
-  if(is.null(extent)){
-    extent <- ext(nc_timeseries_dm_an)
-  }
-  
-  
-  if(is.null(aggregate)){
-    nc_timeseries_dm_an <- nc_timeseries_dm_an %>%
-      crop(extent) %>% 
+  nc_timeseries_dm_an <- nc_timeseries_dm_an %>%
+    crop(extent) %>% 
     tapp(as.factor(time_all$time),"mean")
-  } else{
-    nc_timeseries_dm_an <- nc_timeseries_dm_an %>%
-      aggregate(aggregate,"mean") %>%
-      crop(extent) %>% 
-      tapp(as.factor(time_all$time),"mean")
-  }
   
   time_dy <- as_date(time_all$time) %>% unique()
   time(nc_timeseries_dm_an) <- time_dy
@@ -160,25 +144,6 @@ tidync_attr <- function(x, level = NULL, detrend = F,k=2, scale =  F, extent = N
   terra::time(nc_event_dm_an) <- as.POSIXlt(as_date(event_dates))
   names(nc_event_dm_an) <- as.POSIXlt(as_date(event_dates))
   
-  if(isTRUE(save)){
-    folder_name <- "00_data4analogs"
-    x <- dir.create(file.path(folder_name), showWarnings = FALSE)
-    writeCDF(nc_timeseries_dm_an,
-             filename = paste0(folder_name,"/",varnames(nc_event_dm_an),level,"_",
-                               paste0(year_range,collapse = ""),
-                               "_woevent_day.nc"),
-             varname = varnames(nc_event_dm_an), zname = "time", 
-             prec = "float", 
-             overwrite = T,compression = 3)
-    
-    writeCDF(nc_event_dm_an,
-             filename = paste0(folder_name,"/",varnames(nc_event_dm_an),level,"_",
-                               paste0(year_range,collapse = ""),
-                               "_event_day.nc"),
-             varname = varnames(nc_event_dm_an), zname = "time", 
-             prec = "float", 
-             overwrite = T, compression = 3)
-  }
   
 return(list(ts_wo_event = nc_timeseries_dm_an, 
             event = nc_event_dm_an))
