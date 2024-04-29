@@ -12,23 +12,20 @@ library(gam)
 
 # Downscaling validation event --------------------------------------------
 
-spat_down <- function(x, event_dates, disagg){
+spat_down <- function(reconstruction, disagg){
 
   # Reading and preparing data ------------------------------------------------------------
+  # Reading analogs dates and VOI nc ----------------------------------------
   
-  datevent <- tidync_attr(x = x,level = NULL,detrend = F,scale = F,
-                        extent = NULL, aggregate = NULL,rotate = F,
-                        event_dates =  event_dates,time_window = 0,save = F )$event
-  
-  
-  sample <- datevent[[1]] %>%
+  sample <- reconstruction[[1]][[1]] %>%
     setNames("z")
   # plot(sample)
   
-  dem <- get_elev_raster(locations = raster::raster(sample),
+  dem <- get_elev_raster(locations = sample,
                               prj = crs(sample),
                               z = 7) %>% 
     rast() 
+  dem[dem < 0] <- NA
   
   x_coarse <- dem %>%
     project(sample)
@@ -39,30 +36,29 @@ spat_down <- function(x, event_dates, disagg){
   # plot(x_coarse)
   # plot(x_fine)
   
-  ## Downscaling event
-  dates <- as_date(time(datevent))
-  noms <- names(datevent)
-  
+  ## Downscaling reconstructed periods
+  periods <- names(reconstruction)
+
   .downscaling_dates <- function(ii){
-    dd <- dates[ii]
-    nn <- noms[ii] 
-    xi <- datevent[[ii]]
-    names(xi) <- "z"
-    day_sf <- as.points(xi) %>% st_as_sf() %>%
+    nn <- periods[ii]
+    dd <- reconstruction[[ii]] %>% app("mean")
+
+    day_sf <- as.points(dd) %>% st_as_sf() %>%
       cbind(st_coordinates(.))
     
     day_sf_ <- bind_cols(day_sf,
                         terra::extract(x_coarse,
                                        vect(day_sf)) %>% select(2) %>% 
                           setNames("elev")) %>%
-      filter(!is.na(elev))
+      filter(!is.na(elev)) %>%
+      rename("z"= 1)
     
     target <- as.points(x_fine) %>% st_as_sf() %>%
       cbind(st_coordinates(.)) %>% rename("elev" = 1)
     
     
     regression <- gam(z~s(X)+s(Y)+s(elev),
-                      data = as.data.frame(day_sf_))
+                      data = as.data.frame(day_sf_) %>% select(-ncol(.)))
     
     step_regression <- step.Gam(regression,trace = F,
                                 scope=list("X"=~1+X+s(X,4)+s(X,6)+s(X,12),
@@ -85,7 +81,6 @@ spat_down <- function(x, event_dates, disagg){
     # plot(mod_r$var1.pred-273.15)
     # plot(mod_r$var1.var)
     down_var <- mod_r$var1.pred
-    time(down_var) <- dd
     names(down_var) <- nn
     return(down_var)
   }
