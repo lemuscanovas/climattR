@@ -65,14 +65,13 @@ prepare_data <- function(x, level = NULL, event_dates,
     }
   
   
-  message("Hourly data converted to daily.")
+  message("Additionally, hourly data converted to daily.")
   yr_seq <-  yr_seq[!yr_seq %in% event_yr]
   
   time_all <- filter(ts_nc, time %in% time_window_an)
   nc_timeseries_dm_an <- nc_dayhour[[time_all$id]] 
   
   nc_timeseries_dm_an <- nc_timeseries_dm_an %>%
-    crop(extent) %>% 
     tapp(as.factor(time_all$time),"mean")
   
   time_dy <- as_date(time_all$time) %>% unique()
