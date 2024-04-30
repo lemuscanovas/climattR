@@ -12,18 +12,18 @@ library(gam)
 
 # Downscaling validation event --------------------------------------------
 
-spat_down <- function(reconstruction, disagg){
+spat_down <- function(x, disagg){
 
   # Reading and preparing data ------------------------------------------------------------
   # Reading analogs dates and VOI nc ----------------------------------------
   
-  sample <- reconstruction[[1]][[1]] %>%
+  sample <- x[[1]][[1]] %>%
     setNames("z")
   # plot(sample)
   
-  dem <- get_elev_raster(locations = sample,
+  dem <- elevatr::get_elev_raster(locations = sample,
                               prj = crs(sample),
-                              z = 7) %>% 
+                              z = 5) %>% 
     rast() 
   dem[dem < 0] <- NA
   
@@ -37,11 +37,11 @@ spat_down <- function(reconstruction, disagg){
   # plot(x_fine)
   
   ## Downscaling reconstructed periods
-  periods <- names(reconstruction)
+  periods <- names(x)
 
   .downscaling_dates <- function(ii){
     nn <- periods[ii]
-    dd <- reconstruction[[ii]] %>% app("mean")
+    dd <- x[[ii]] %>% app("mean")
 
     day_sf <- as.points(dd) %>% st_as_sf() %>%
       cbind(st_coordinates(.))
@@ -74,7 +74,7 @@ spat_down <- function(reconstruction, disagg){
       formula=formula(step_regression),
       locations=as_Spatial(day_sf_),
       newdata=as_Spatial(target),
-      model=v_mod_OK,
+      # model=v_mod_OK,
       debug.level = -1)
     
     mod_r <- mod %>% as.data.frame() %>% rast(type = "xyz")
@@ -86,7 +86,7 @@ spat_down <- function(reconstruction, disagg){
   }
   
   
-  res <- pblapply(1:nlyr(datevent),FUN = .downscaling_dates) %>% rast()
+  res <- pblapply(seq_along(periods),FUN = .downscaling_dates) %>% rast()
   return(res)
 }
 

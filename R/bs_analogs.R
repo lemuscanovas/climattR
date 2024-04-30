@@ -136,7 +136,7 @@ bs_analogs<- function(x, analogs,
   dat_days_event <- dat %>% 
     filter(time %in% unique(analogs$time_obj)) %>%
     group_by(time) %>%
-    summarise(value = ifelse(exists("ref_mean"), value - pull(ref_mean,1),value),.groups = "drop") %>%
+    summarise(var = ifelse(exists("ref_mean"), var - pull(ref_mean,1),var),.groups = "drop") %>%
     ungroup() %>%
     rename(time_obj = time) 
   
