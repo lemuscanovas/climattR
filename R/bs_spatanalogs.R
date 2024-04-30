@@ -50,10 +50,6 @@ bs_spatanalogs<- function(x,analogs,n = 1000,
       subset(which(year(time_dat) >= ref_period[1] & year(time_dat) <= ref_period[2])) %>%
       app("mean", na.rm =T)
     
-    if(is.function(conversion_fun)){
-      ref_mean <- conversion_fun(ref_mean)    
-    }
-  
     
   }else if(isFALSE(anom)){
     
@@ -71,13 +67,13 @@ bs_spatanalogs<- function(x,analogs,n = 1000,
   # Computing sd and mean for a counterfactual world -------------------------------
   
   # periods available
-  yr_split <- analogs_subperiods$period %>% 
+  yr_split <- analogs$period %>% 
     unique() 
   
   sim_bs_l <- list()
   for(ii in seq_along(yr_split)){
     # selecting counterfactual analogs
-    dat_subset <- inner_join(analogs_subperiods, ts_nc, by = "time") %>%
+    dat_subset <- inner_join(analogs, ts_nc, by = "time") %>%
     filter(str_detect(period, yr_split[ii]))
     
       bootstrap <- function(x){
