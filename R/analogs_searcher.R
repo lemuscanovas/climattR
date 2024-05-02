@@ -14,7 +14,9 @@
 #'
 #' @importFrom terra as.data.frame
 #' @importFrom lubridate ymd year
-#' @importFrom tidyverse %>% filter mutate select inner_join summarise group_by ungroup arrange slice bind_cols bind_rows pivot_longer
+#' @importFrom magrittr %>% 
+#' @importFrom dplyr filter mutate select inner_join summarise group_by ungroup arrange slice bind_cols bind_rows 
+#' @importFrom tidyr pivot_longer
 #' @importFrom stats setNames
 #' @examples
 #' ts_wo_event_example <- list(rast(system.file("extdata", "example1.nc", package = "yourPackageName")))

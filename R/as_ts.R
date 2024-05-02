@@ -15,8 +15,10 @@
 #'
 #' @importFrom terra rast time app extract
 #' @importFrom lubridate as_date
-#' @importFrom tidyverse tibble setNames group_by summarise
+#' @importFrom tibble tibble 
+#' @importFrom dplyr function
 #' @importFrom pracma polyfit polyval
+#' @importFrom stats setNames
 #' @examples
 #' # Assuming 'data.nc' contains a SpatRaster with time variable
 #' raster_path <- system.file("extdata", "data.nc", package = "yourPackageName")

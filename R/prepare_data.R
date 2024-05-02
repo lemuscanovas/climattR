@@ -18,11 +18,12 @@
 #'
 #' @importFrom terra rast time app
 #' @importFrom lubridate as_date year month
-#' @importFrom tidyverse %>% tibble filter first last
-#' @importFrom pbapply pbsapply
+#' @importFrom magrittr %>% 
+#' @importFrom tibble tibble
+#' @importFrom dplyr filter first last
 #' @importFrom stringr str_detect str_sub str_c
 #' @importFrom pracma polyfit polyval
-#' @importFrom stats scale
+#' @importFrom base scale
 #' @examples
 #' nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
 #' event_dates <- as.Date(c("2022-06-01"))

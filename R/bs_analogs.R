@@ -21,7 +21,6 @@
 #' @importFrom dplyr filter summarise mutate inner_join group_by ungroup rename
 #' @importFrom pbapply pblapply
 #' @importFrom pracma polyfit polyval
-#' @importFrom tidyverse rename group_by summarise
 #' @examples
 #' data <- data.frame(time = seq(as.Date('2020-01-01'), by = 'day', length.out = 365),
 #'                    var = rnorm(365))
