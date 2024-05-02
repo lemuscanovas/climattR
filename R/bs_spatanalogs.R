@@ -1,13 +1,38 @@
-library(tidyverse)
-library(lubridate)
-library(pracma)
+#' Bootstrapping Spatial Analogs
+#'
+#' This function performs bootstrapping on spatial analogs for a given set of event dates.
+#' It allows for detrending, anomaly calculation, and custom event functions on a `SpatRaster`.
+#' The function returns a set of spatial datasets simulating possible scenarios.
+#'
+#' @param x A file path to a NetCDF file or a `SpatRaster` object.
+#' @param analogs A data frame containing analog dates and corresponding period labels.
+#' @param n The number of bootstrap samples to generate.
+#' @param event_fun A character string specifying the aggregation function to apply, default is "mean".
+#' @param anom Logical; if TRUE, calculates anomalies based on a reference period.
+#' @param ref_period A numeric vector of length two specifying the start and end years for the reference period, required if `anom` is TRUE.
+#' @param replace Logical; should sampling be with replacement? Defaults to TRUE.
+#' @param detrend Logical; should the data be detrended? Defaults to FALSE.
+#' @param k Degree of the polynomial for detrending if `detrend` is TRUE.
+#'
+#' @return A list of `SpatRaster` objects for each unique period in the analogs, representing simulated bootstrap samples.
+#'
+#' @importFrom terra rast app time
+#' @importFrom lubridate as_date year
+#' @importFrom pracma polyfit polyval
+#' @importFrom tidyverse %>% inner_join filter slice_sample group_by mutate select unique
+#' @importFrom pbapply pblapply
+#' @examples
+#' dat_path <- system.file("extdata", "example.nc", package = "yourPackageName")
+#' analogs_data <- data.frame(time = as.Date('2021-01-01') + 0:10, period = rep('2021', 11))
+#' result <- bs_spatanalogs(dat_path, analogs_data, n = 100, event_fun = "mean", anom = TRUE, ref_period = c(1980, 2000))
+#' @export
 
-bs_spatanalogs<- function(x,analogs,n = 1000, 
-                          event_fun = "mean",
-                          anom = NULL, 
-                          ref_period = NULL,
-                          replace = T,
-                          detrend = F,k = 2){
+bs_spatanalogs <- function(x, analogs, n = 1000, 
+                           event_fun = "mean",
+                           anom = NULL, 
+                           ref_period = NULL,
+                           replace = T,
+                           detrend = F, k = 2) {
   
   event_FUN <- match.fun(FUN = event_fun)
   

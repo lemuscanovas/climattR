@@ -1,7 +1,6 @@
 
 # Downscaling spatial analogs ---------------------------------------------
 
-
 library(terra)
 library(elevatr)
 library(rnaturalearth)

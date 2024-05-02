@@ -1,14 +1,44 @@
-library(tidyverse)
-library(lubridate)
-library(furrr)
-library(terra)
-library(scales)
+#' Bootstrap Analogs for Time Series Data
+#'
+#' This function performs bootstrap simulations on time series data based on specified analog periods.
+#' It includes options for detrending, calculating anomalies, and customizing bootstrap sampling.
+#'
+#' @param x A dataframe with at least 'time' and one variable column.
+#' @param analogs A dataframe containing analogs information including 'time_obj' and 'period'.
+#' @param n Integer; the number of bootstrap samples to generate for each period.
+#' @param event_fun String; the name of the function to apply during event aggregation.
+#' @param anom Logical; indicates whether anomalies relative to a reference period should be computed.
+#' @param ref_period Numeric vector; the start and end years of the reference period for anomaly calculations.
+#' @param replace Logical; indicates whether sampling should be with replacement.
+#' @param detrend Logical; indicates whether the data should be detrended.
+#' @param k Integer; the degree of polynomial used for detrending.
+#'
+#' @return A list containing three elements: observed data (aggregated original data), 
+#'         bootstrap simulation results, and a summary of bootstrap results.
+#'
+#' @importFrom lubridate as_date
+#' @importFrom terra rast
+#' @importFrom dplyr filter summarise mutate inner_join group_by ungroup rename
+#' @importFrom pbapply pblapply
+#' @importFrom pracma polyfit polyval
+#' @importFrom tidyverse rename group_by summarise
+#' @examples
+#' data <- data.frame(time = seq(as.Date('2020-01-01'), by = 'day', length.out = 365),
+#'                    var = rnorm(365))
+#' analogs <- data.frame(time_obj = seq(as.Date('2020-01-01'), by = 'month', length.out = 12),
+#'                       period = rep('2020', 12))
+#' results <- bs_analogs(data, analogs, n = 100, event_fun = "mean", anom = TRUE, ref_period = c(2019, 2021))
+#' @export
 
-bs_analogs<- function(x, analogs,
-                      n = 1000,event_fun = "mean",
-                      anom = F, ref_period = NULL, 
-                      replace = T, 
-                      detrend = F,k=2){
+bs_analogs <- function(x, 
+                       analogs, 
+                       n = 1000, 
+                       event_fun = "mean", 
+                       anom = F, 
+                       ref_period = NULL,
+                       replace = T, 
+                       detrend = F, 
+                       k = 2) {
   
   event_FUN <- match.fun(FUN = event_fun)
 
