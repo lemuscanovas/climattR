@@ -97,7 +97,6 @@ bs_random <- function(x, analogs_subperiods,
   
   
   # COMPUTING STATISTICAL SIGN OF BOOTSTRAP  --------------------------------
-  
   .range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
   
   
@@ -112,7 +111,6 @@ bs_random <- function(x, analogs_subperiods,
               var = var,.groups = "drop") %>%
     ungroup()
   
-  # mean and sd of RMSD or Euclid dist, 
   # mean, median and sd of var
   summary1_bootstrap_daily <- join_bootstraps %>%
     group_by(time_obj,period) %>%
@@ -123,26 +121,6 @@ bs_random <- function(x, analogs_subperiods,
               var_sd = sd(var),
               .groups = "drop") %>%
     ungroup()
-  
-  # mitjana anomalia de cada dia analeg
-  # ttest of metric distance and var
-  # summary2_bootstrap_daily <- join_bootstraps %>%
-  #   pivot_wider(
-  #     names_from = period,
-  #     values_from = c(dist, var),values_fn = list) %>%
-  #   unnest(cols = 2:5) %>%
-  #   group_by(time_obj) %>%
-  #   summarise(ttest_dist = t.test(.[[2]],.[[3]])$p.value,
-  #             ttest_mean = t.test(.[[4]],.[[5]])$p.value)
-  # 
-  # summary2_bootstrap_event <- join_bootstraps %>%
-  #   pivot_wider(
-  #     names_from = period,
-  #     values_from = c(dist, var),values_fn = list) %>%
-  #   unnest(cols = 2:5) %>%
-  #   summarise(ttest_dist = t.test(.[[2]],.[[3]])$p.value,
-  #             ttest_mean = t.test(.[[4]],.[[5]])$p.value)
-  
   
   dat_days_event <- dat %>% 
     filter(time %in% unique(analogs_subperiods$time_obj)) %>%

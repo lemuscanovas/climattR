@@ -31,16 +31,16 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
                            event_fun = "mean",
                            anom = NULL, 
                            ref_period = NULL,
-                           replace = T,
-                           detrend = F, k = 2) {
+                           replace = TRUE,
+                           detrend = FALSE, k = 2) {
   
   event_FUN <- match.fun(FUN = event_fun)
   
-  # Reading analogs dates and VOI nc ----------------------------------------
-  if(class(x)[1] == "SpatRaster"){
-    dat <- x
-  }else{
-    dat <- rast(x)  
+  # Initialize raster
+  nc_dayhour <- if (inherits(x, "SpatRaster")) {
+    x
+  } else {
+    rast(x)
   }
   
   time_dat <- as_date(time(dat)) # if hourly it will be converted to daily
@@ -53,10 +53,10 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
   message("Caution! if hourly data is provided then it is converted into daily mean.")
   
   if(length((time(dat))) != length(unique(time(dat)))){
-      dat <- dat %>%
-        tapp(dat, as.factor(time_dat),"mean", na.rm = T)
+      dat <- dat %>% tapp(dat, as.factor(time_dat),"mean", na.rm = T)
     }
   
+  # Apply detrending if specified
   if(isTRUE(detrend)){
     detrend_pracma <- function(y, k) {
       fit <- polyfit(seq_along(y), y, k)
@@ -65,9 +65,7 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
     }
     
     dat <- app(dat, detrend_pracma, k = k)
-    # dat <- c(dat[[1]],dat)
   }
-  
   
   if(isTRUE(anom) & length(ref_period == 2)){
     
@@ -85,19 +83,17 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
     stop("Please, the reference period is as follows: ref_period = c(1981,2010)")
   }
 
-  
   ts_nc <-tibble(id = seq_along(time(dat)), # id to subset
                  time = time_dat) 
   
-  # Computing sd and mean for a counterfactual world -------------------------------
-  
-  # periods available
+  # Calculation of bootstrapped sd and mean for the different periods set ------
   yr_split <- analogs$period %>% 
     unique() 
   
   sim_bs_l <- list()
   for(ii in seq_along(yr_split)){
-    # selecting counterfactual analogs
+    
+    # selecting  analogs
     dat_subset <- inner_join(analogs, ts_nc, by = "time") %>%
     filter(str_detect(period, yr_split[ii]))
     
@@ -106,8 +102,8 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
         slice_sample(n = 1, replace = replace)
     
       # Computing mean
-      sim_event <- dat[[cases$id]] %>% # selecting VOI analogs
-        app(event_fun) # conversion fun
+      sim_event <- dat[[cases$id]] %>% 
+        app(event_fun) # summarising the event
   
     }
 

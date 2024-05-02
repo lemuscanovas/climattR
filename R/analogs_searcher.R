@@ -26,42 +26,39 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
                              periods = c(1951,1980,1991,2020), 
                              metric = "rmsd") {
   
-  if(metric == "rmsd"){
-    FUN <- function(a, b) sqrt(sum((a - b)^2)/length(a))
-  } else if(metric  == "euclidean"){
-    FUN <- function(a, b) sqrt(sum((a - b)^2))
-  }else if(metric == "pearson"){
-    FUN <- function(a, b) -(cor(a,b))
-  }else{
-    stop("Choose between: rmsd or euclidean")
+  if (metric == "rmsd") {
+    comparison_fun <- function(a, b) sqrt(sum((a - b)^2) / length(a))
+  } else if (metric == "euclidean") {
+    comparison_fun <- function(a, b) sqrt(sum((a - b)^2))
+  } else if (metric == "pearson") {
+    comparison_fun <- function(a, b) -cor(a, b)
+  } else {
+    stop("Choose between: rmsd, euclidean, or pearson")
   }
   
   ts_wo_event_df_l <- list()
   event_df_l <- list()
   
   for (var in 1:length(ts_wo_event)) {
-    
-    # event merging variables
+    # Event data handling
     event_df_l[[var]] <- event[[var]] %>% 
-      as.data.frame(xy = T) %>% 
+      as.data.frame(xy = TRUE) %>% 
       as_tibble() %>%
       pivot_longer(names_to = "time", values_to = "var_obj", 3:ncol(.)) %>%
       mutate(time = ymd(str_replace(time,"X","")),var_id = var) 
     
-    # data outside event merging
-    coords <- (event[[var]] %>% 
-                 as.data.frame(xy = T))[,1:2]
-    
+    # TS data outside event
+    coords <- (event[[var]] %>% as.data.frame(xy = TRUE))[,1:2]
     new_names <- str_c("X.",names(ts_wo_event[[var]]))
-    
     names(ts_wo_event[[var]]) <- new_names
     
     ts_wo_event_tidy <- ts_wo_event[[var]] %>%
-      as.data.frame(xy =T) %>% 
+      as.data.frame(xy =TRUE) %>% 
       as_tibble() %>% 
       filter(x %in% coords$x) %>% 
       select(-c(x,y))
     
+    # Period handling
     if(!is.null(periods)){
      
       split_year <- periods

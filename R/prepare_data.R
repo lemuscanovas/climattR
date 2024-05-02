@@ -31,7 +31,7 @@
 
 prepare_data <- function(x, level = NULL, event_dates,
                          time_window = 31, analog_months = NULL,
-                         detrend = F, k = 2, scale = F) {
+                         detrend = FALSE, k = 2, scale = FALSE) {
 
   # Initialize raster
   nc_dayhour <- if (inherits(x, "SpatRaster")) {
@@ -152,7 +152,7 @@ prepare_data <- function(x, level = NULL, event_dates,
   #                      max(as_date("2022-08-31")), 
   #                      by = "day")
   
-  if(detrend == T){
+  if(detrend == TRUE){
     nc_timeseries_dm_an <- nc_timeseries_dm_an[[which(!time4analogs %in% windows_event)]]
     time_all <- time4analogs[which(!time4analogs %in% windows_event)]
     
