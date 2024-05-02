@@ -34,14 +34,26 @@ To date there is no R package available which have implemented the simple but ef
 ``` r
 # To install the latest version from Github:
 # install.packages("remotes")
-remotes::install_github("lemuscanovas/climattR")
+# remotes::install_github("lemuscanovas/climattR")
+
+library(climattR)
 ```
 
 ### First steps. Rapid attribution of 
 
-Interested in learning how to use `synoptReg`? Visit the package website and read the articles:
+``` r
+z <- list.files(path = "inst/testdata/",pattern = "geopot",full.names = T) %>% rast()
+t2m <- list.files(path = "inst/testdata/",pattern = "2m_t",full.names = T) %>% rast()
+```
 
-* [synoptReg website](https://lemuscanovas.github.io/synoptreg/)
+``` r
+## Preparing data for analogs
+dates <- seq(as_date("2022-06-12"), as_date("2022-06-21"),"day")
+
+dat4an <- prepare_data(x = z,level = NULL,
+                      event_dates =  dates,time_window = 31)
+
+```
 
 
 ## Package citation
