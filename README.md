@@ -3,15 +3,14 @@ climattR <img src="img/logo.png" align="right" alt="" width="140" />
 # `climattR`: Rapid climate extreme event attribution for regional and local areas
 
 
-[![CRAN status](https://www.r-pkg.org/badges/version/synoptReg)](https://cran.r-project.org/package=synoptReg)
-[![](http://cranlogs.r-pkg.org/badges/grand-total/synoptReg)](http://cran.rstudio.com/web/packages/synoptReg/index.html)
+[![CRAN status](https://www.r-pkg.org/badges/version/climattR)](https://cran.r-project.org/package=climattR)
 [![Project Status: Active – The project has reached a stable, usable
 state and is being actively
-developed.](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active)
+developed.](http://www.repostatus.org/badges/latest/wip.svg)](http://www.repostatus.org/#wip)
 
 ## Overview
 
-**climattR** Toolbox to rapid attribute extreme events using the flow analogs method in regional and local areas. This package also allows to perform an spatial downscaling using regression kriging to provide an attribution framework in local and mountainous areas using ERA5-Land.. Package website: lemuscanovas.github.io/synoptreg/
+**climattR** is a toolbox for performing rapid attribution of extreme weather events using the flow analogs approach. *This package is still under developement*
 
 ----
 
@@ -20,34 +19,13 @@ Contents:
 * [Why this package](#why-this-package)
 * [How it works](#how-it-works)
   * [Installation](#installation)
-  * [Vignettes](#vignettes)
 * [Package citation](#package-citation)
 * [Contact](#contact)
 
 ----
 
 ## Why this package
-The interaction between the troposphere and the environment is well known, and how this can condition human activities on some occasions. These situations can occur with an anticyclonic block that causes an increase in the concentration of NO<sub>2</sub>; or when a low-pressure area causes abundant rainfall over urban areas, etc.
-This package is intended to be a roadmap for territorial management on a regional scale and to anticipate the management of adverse situations for the population, due to pollution, as well as extreme weather conditions.
-In short, `synoptReg` allows to:
-
--    Compute an objective **synoptic classification** to obtain the main atmospheric patterns, the so-called weather types, of a given region. Two approaches are provided:
-
-     - ***Circulation-To-Environment***: First establishes the main circulation         types for a long time series and then characterises an environmental
-     variable (i.e. precipitation,NO<sub>2</sub>,O<sub>3</sub>,...) based on
-     the previous circulation types.
-  
-     - ***Environment-To-Circulation***: First categorises the environmental
-     variable (e.g. precipitation, temperature,...) and then characterises
-     the synoptic patterns prevailing under specific environmental
-     conditions (e.g. days with elevated temperatures, torrential rainfall
-     events). 
-     
-     * Several methods are implemented: PCA-based, Lamb and SOM.
-  
-- Represent the **impact of each weather type** on an environmental variable (continuous): precipitation, temperature, pollutants, ...
-
-- Define a **categorical regionalization** of this environmental variable. Each region will be independent and with specific characteristics.  
+To date there is no R package available which have implemented the simple but effective flow analogues methodology to perform extreme weather event attribution. `climattR` contains a set of functions to 1) prepare data to employ flow analogues; 2) Find flow analogue days to a target date; 3) Reconstruct surface fields for extreme weather events in past and present (also future) climate conditions;
 
 ## How it works
 

@@ -17,7 +17,7 @@
 #'         and `event`, the timeseries data for the event dates.
 #'
 #' @importFrom terra rast time app
-#' @importFrom lubridate as_date year month
+#' @importFrom lubridate as_date year month is.Date
 #' @importFrom magrittr %>% 
 #' @importFrom tibble tibble
 #' @importFrom dplyr filter first last
