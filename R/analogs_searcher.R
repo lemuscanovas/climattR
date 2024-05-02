@@ -1,11 +1,30 @@
-library(metR)
-library(tidyverse)
-library(lubridate)
-library(terra)
+#' Search for analogs based on historical data and specific events
+#'
+#' This function compares historical meteorological data with event data to find analogs.
+#' It supports multiple metrics for comparison including RMSD, Euclidean, and Pearson correlation.
+#' Analog dates are identified based on the smallest distance metrics calculated over specified periods.
+#'
+#' @param ts_wo_event List of `SpatRaster` objects containing timeseries data excluding the event dates.
+#' @param event List of `SpatRaster` objects containing timeseries data for the event dates.
+#' @param n The number of top analogs to return.
+#' @param periods A vector of years to define the periods for analysis, should be in pairs.
+#' @param metric A character string specifying the metric for comparison: 'rmsd', 'euclidean', or 'pearson'.
+#'
+#' @return A list containing the analogs for the full period and, if specified, for subperiods.
+#'
+#' @importFrom terra as.data.frame
+#' @importFrom lubridate ymd year
+#' @importFrom tidyverse %>% filter mutate select inner_join summarise group_by ungroup arrange slice bind_cols bind_rows pivot_longer
+#' @importFrom stats setNames
+#' @examples
+#' ts_wo_event_example <- list(rast(system.file("extdata", "example1.nc", package = "yourPackageName")))
+#' event_example <- list(rast(system.file("extdata", "example2.nc", package = "yourPackageName")))
+#' result <- analogs_searcher(ts_wo_event_example, event_example, n = 5, periods = c(1951,1980,1991,2020), metric = "rmsd")
+#' @export
 
 analogs_searcher <- function(ts_wo_event, event, n = 20, 
                              periods = c(1951,1980,1991,2020), 
-                             metric = "rmsd"){
+                             metric = "rmsd") {
   
   if(metric == "rmsd"){
     FUN <- function(a, b) sqrt(sum((a - b)^2)/length(a))
