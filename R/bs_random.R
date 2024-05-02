@@ -29,6 +29,9 @@
 #' @importFrom furrr future_map
 #' @importFrom pbapply pblapply
 #' @importFrom terra rast
+#' 
+#' @export
+
 bs_random <- function(x, periods = c(1951,1980,1991,2020), n = 1000, event_fun = "mean", anom = F, 
                       ref_period = NULL, replace = T, detrend = F,k=2){
   
