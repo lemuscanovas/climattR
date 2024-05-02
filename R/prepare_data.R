@@ -88,7 +88,7 @@ prepare_data <- function(x, level = NULL, event_dates,
       time_window_an <- dates[mo]
     }
   
-  message("Additionally, if hourly data  provided then it is converted to daily mean.")
+  message("Caution! if hourly data is provided then it is converted into daily mean.")
   yr_seq <-  yr_seq[!yr_seq %in% event_yr]
   
   time_all <- filter(ts_nc, time %in% time_window_an)

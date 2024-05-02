@@ -92,7 +92,6 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
   
   time_event = unique(event_df$time)
   
-  # FUN <- match.fun(metric)
   .range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
   
   .analog_extraction_all_period <- function(s){
@@ -104,7 +103,7 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
                                event_df_ii,
                                by = c("x","y", "var_id")) %>%
       group_by(time,var_id) %>%
-      summarise(dist = FUN(var_hist, var_obj),.groups = "drop") %>%
+      summarise(dist = comparison_fun(var_hist, var_obj),.groups = "drop") %>%
       ungroup() %>%
       group_by(time) %>%
       summarise(dist = sum(dist), .groups = "drop") %>%
@@ -125,7 +124,7 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
                                event_df_ii, 
                                by = c("x","y", "var_id")) %>%
       group_by(time,period, var_id) %>%
-      summarise(dist = FUN(var_hist, var_obj), .groups = "drop") %>%
+      summarise(dist = comparison_fun(var_hist, var_obj), .groups = "drop") %>%
       ungroup() %>%
       group_by(period, time) %>%
       summarise(dist = sum(dist), .groups = "drop") %>%
