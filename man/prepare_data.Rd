@@ -10,9 +10,9 @@ prepare_data(
   event_dates,
   time_window = 31,
   analog_months = NULL,
-  detrend = F,
+  detrend = FALSE,
   k = 2,
-  scale = F
+  scale = FALSE
 )
 }
 \arguments{

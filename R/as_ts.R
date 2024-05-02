@@ -16,7 +16,6 @@
 #' @importFrom terra rast time app extract
 #' @importFrom lubridate as_date
 #' @importFrom tibble tibble 
-#' @importFrom dplyr function
 #' @importFrom pracma polyfit polyval
 #' @importFrom stats setNames
 #' @examples

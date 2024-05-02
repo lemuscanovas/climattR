@@ -19,7 +19,8 @@
 #' @importFrom terra rast app time
 #' @importFrom lubridate as_date year
 #' @importFrom pracma polyfit polyval
-#' @importFrom tidyverse %>% inner_join filter slice_sample group_by mutate select unique
+#' @importFrom magrittr %>% 
+#' @importFrom dplyr inner_join filter slice_sample group_by mutate select
 #' @importFrom pbapply pblapply
 #' @examples
 #' dat_path <- system.file("extdata", "example.nc", package = "yourPackageName")
@@ -38,9 +39,9 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
   
   # Initialize raster
   nc_dayhour <- if (inherits(x, "SpatRaster")) {
-    x
+    dat <- x
   } else {
-    rast(x)
+    dat <- rast(x)
   }
   
   time_dat <- as_date(time(dat)) # if hourly it will be converted to daily

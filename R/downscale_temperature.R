@@ -1,29 +1,44 @@
-
-# Downscaling spatial analogs ---------------------------------------------
-
-library(terra)
-library(elevatr)
-library(rnaturalearth)
-library(gstat)   # The most popular R-Package for Kriging (imho)
-library(automap) # Automatize some (or all) parts of the gstat-workflow 
-library(sf)
-library(gam)
-
-# Downscaling validation event --------------------------------------------
-
-spat_down <- function(x, disagg){
+#' Downscale Temperature Using Spatial Analogs
+#'
+#' This function downscales temperature data using spatial analogs. It integrates various
+#' geographic and statistical methodologies to refine coarse-resolution temperature data
+#' to a finer resolution based on digital elevation models (DEM) and other geographical
+#' transformations. The function uses Kriging for spatial interpolation.
+#'
+#' @param x A list of raster layers representing different periods or scenarios.
+#' @param dem An optional digital elevation model raster. If not provided, it will be automatically
+#'        downloaded using the `elevatr` package.
+#' @param disagg A numeric value indicating the disaggregation factor for downscaling.
+#' @param z An integer specifying the zoom level for DEM retrieval if `dem` is not provided.
+#'
+#' @return A raster object representing the downscaled temperature data across different periods.
+#'
+#' @import terra
+#' @import elevatr
+#' @import rnaturalearth
+#' @import gstat
+#' @import automap
+#' @import sf
+#' @import gam
+#' @examples
+#' # Assuming 'temp_rasters' is a list of raster layers:
+#' # temp_rasters <- list(rast1, rast2, rast3)
+#' # dem_raster <- rast("path_to_dem.tif")
+#' # downscaled_temps <- downscale_temperature(temp_rasters, dem = dem_raster, disagg = 2, z = 6)
+#' @export
+downscale_temperature <- function(x, dem = NULL, disagg, z = 6) {
 
   # Reading and preparing data ------------------------------------------------------------
-  # Reading analogs dates and VOI nc ----------------------------------------
-  
   sample <- x[[1]][[1]] %>%
     setNames("z")
-  # plot(sample)
-  
+
+  if(is.null(dem)){
   dem <- elevatr::get_elev_raster(locations = sample,
                               prj = crs(sample),
-                              z = 5) %>% 
+                              z = z) %>% 
     rast() 
+  }
+  
   dem[dem < 0] <- NA
   
   x_coarse <- dem %>%
@@ -31,14 +46,12 @@ spat_down <- function(x, disagg){
   
   x_fine <- dem %>%
     project(disagg(sample,disagg))
-  # 
-  # plot(x_coarse)
-  # plot(x_fine)
+
   
   ## Downscaling reconstructed periods
   periods <- names(x)
 
-  .downscaling_dates <- function(ii){
+  .downscaling_reconstructions <- function(ii){
     nn <- periods[ii]
     dd <- x[[ii]] %>% app("mean")
 
@@ -47,7 +60,7 @@ spat_down <- function(x, disagg){
     
     day_sf_ <- bind_cols(day_sf,
                         terra::extract(x_coarse,
-                                       vect(day_sf)) %>% select(2) %>% 
+                                       vect(day_sf)) %>% dplyr::select(2) %>% 
                           setNames("elev")) %>%
       filter(!is.na(elev)) %>%
       rename("z"= 1)
@@ -73,19 +86,20 @@ spat_down <- function(x, disagg){
       formula=formula(step_regression),
       locations=as_Spatial(day_sf_),
       newdata=as_Spatial(target),
-      # model=v_mod_OK,
+      model=v_mod_OK,
       debug.level = -1)
     
     mod_r <- mod %>% as.data.frame() %>% rast(type = "xyz")
-    # plot(mod_r$var1.pred-273.15)
-    # plot(mod_r$var1.var)
+
     down_var <- mod_r$var1.pred
     names(down_var) <- nn
+    message(paste0("Spatial downscaling provided for reconstructed period: ", nn))
+    
     return(down_var)
   }
   
   
-  res <- pblapply(seq_along(periods),FUN = .downscaling_dates) %>% rast()
+  res <- lapply(seq_along(periods),FUN = .downscaling_reconstructions) %>% rast()
   return(res)
 }
 

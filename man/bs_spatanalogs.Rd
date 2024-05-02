@@ -11,8 +11,8 @@ bs_spatanalogs(
   event_fun = "mean",
   anom = NULL,
   ref_period = NULL,
-  replace = T,
-  detrend = F,
+  replace = TRUE,
+  detrend = FALSE,
   k = 2
 )
 }
