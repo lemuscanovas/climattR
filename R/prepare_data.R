@@ -32,30 +32,31 @@
 prepare_data <- function(x, level = NULL, event_dates,
                          time_window = 31, analog_months = NULL,
                          detrend = F, k = 2, scale = F) {
-  # function implementation remains the same
 
-  # Reading analogs dates and VOI nc ----------------------------------------
-  if(class(x)[1] == "SpatRaster"){
-    nc_dayhour <- x
-  }else{
-    nc_dayhour <- rast(x)  
+  # Initialize raster
+  nc_dayhour <- if (inherits(x, "SpatRaster")) {
+    x
+  } else {
+    rast(x)
   }
   
-  if(is.numeric(level) == T){ # selecting pressure level
-    
-  levs <- names(nc_dayhour)
-  l <- which(str_detect(levs, paste0(level,"_")))
-  
-  nc_dayhour <- nc_dayhour[[l]] 
+
+  # Selecting pressure level if specified
+  if (is.numeric(level)) {
+    levs <- names(nc_dayhour)
+    level_index <- which(str_detect(levs, paste0(level, "_")))
+    nc_dayhour <- nc_dayhour[[level_index]]
   }
   
-  ts_daily  = as_date(terra::time(nc_dayhour)) %>% sort()
+  # Convert time to date and sort
+  ts_daily <- as_date(terra::time(nc_dayhour)) %>% sort()
+  if (!is.Date(ts_daily)) {
+    stop("NetCDF provided has uncodified dates. Check time variable")
+  }
+  
+  # Determine unique years
   ts_yearly = year(ts_daily) %>% unique()
   year_range <- c(first(ts_yearly),last(ts_yearly))
-  
-  if(!is.Date(ts_daily)){
-    stop("NetCDF provided has uncodified dates. Check time variable")
-  } 
   
   ts_nc <- tibble(id = seq_along(ts_daily),
                       time = ts_daily)
@@ -63,9 +64,6 @@ prepare_data <- function(x, level = NULL, event_dates,
   event_yr = year(event_dates[1])
   yr_seq <- seq(year_range[1],year_range[2]) 
   
-  # seq_event <- seq(min(as_date(event_dates))-time_window, 
-  #          max(as_date(event_dates))+time_window, 
-  #          by = "day")
   
   if(!is.null(time_window)){
   .time_windows = function(x){
@@ -90,19 +88,20 @@ prepare_data <- function(x, level = NULL, event_dates,
       time_window_an <- dates[mo]
     }
   
-  
   message("Additionally, if hourly data  provided then it is converted to daily mean.")
   yr_seq <-  yr_seq[!yr_seq %in% event_yr]
   
   time_all <- filter(ts_nc, time %in% time_window_an)
   nc_timeseries_dm_an <- nc_dayhour[[time_all$id]] 
   
+  # Apply mean aggregation
   nc_timeseries_dm_an <- nc_timeseries_dm_an %>%
     tapp(as.factor(time_all$time),"mean")
   
   time_dy <- as_date(time_all$time) %>% unique()
   time(nc_timeseries_dm_an) <- time_dy
  
+  # Apply detrending if specified
   if(isTRUE(detrend)){
     detrend_pracma <- function(y, k) {
       fit <- polyfit(seq_along(y), y, k)
@@ -111,9 +110,9 @@ prepare_data <- function(x, level = NULL, event_dates,
     }
     
     nc_timeseries_dm_an <- app(nc_timeseries_dm_an, detrend_pracma,k=k)
-    # dat <- c(dat[[1]],dat)
   }
   
+  # Apply scaling if specified
   if(isTRUE(scale)){
     nc_timeseries_dm_an <- app(nc_timeseries_dm_an,scale.default)
   }
