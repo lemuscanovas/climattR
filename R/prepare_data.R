@@ -17,8 +17,8 @@
 #'         and `event`, the timeseries data for the event dates.
 #'
 #' @importFrom terra rast time app
-#' @importFrom lubridate as_date year month first last
-#' @importFrom tidyverse %>% tibble filter
+#' @importFrom lubridate as_date year month
+#' @importFrom tidyverse %>% tibble filter first last
 #' @importFrom pbapply pbsapply
 #' @importFrom stringr str_detect str_sub str_c
 #' @importFrom pracma polyfit polyval
