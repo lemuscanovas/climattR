@@ -32,15 +32,12 @@ To date there is no R package available which have implemented the simple but ef
 ### Installation
 
 ``` r
-# To install the CRAN version (1.2.1):
-install.packages("synoptReg")
-
 # To install the latest version from Github:
 # install.packages("remotes")
-remotes::install_github("lemuscanovas/synoptReg")
+remotes::install_github("lemuscanovas/climattR")
 ```
 
-### Vignettes
+### First steps. Rapid attribution of 
 
 Interested in learning how to use `synoptReg`? Visit the package website and read the articles:
 
