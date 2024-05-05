@@ -106,7 +106,7 @@ labs(y = "RMSD", subtitle = "Analogs quality")+
 theme_bw()+
 theme(axis.title.x = element_blank())
 ```
-![](img/analogs_quality.png){ width=20% }
+<img src="img/analogs_quality.png" alt="" width="200"/>
 ``` r
 # Reporting analogues frequency trend
 
