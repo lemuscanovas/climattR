@@ -107,8 +107,9 @@ theme_bw()+
 theme(axis.title.x = element_blank())
 ```
 <img src="img/analogs_quality.png" alt="" width="300"/>
+
 ```r
-# Reporting analogues frequency trend
+# Reporting analogues frequency 
 
 annual_counts <- analogs$analogs_full_period %>% mutate(yr = year(time)) %>% 
                  group_by(yr) %>% 
@@ -122,7 +123,7 @@ theme(axis.title.x = element_blank())
 ```
 ![](img/analogs_annual_freq.png){width=75%}
 
-``` r
+```r
 ## Bootstrap heatwave reconstruction for a counterfactual/factual world
 bs_spatial_analogs <- bs_spatanalogs(x = tasmean,
                                      analogs = analogs$analogs_subperiods,
@@ -185,10 +186,8 @@ a+b + plot_layout(widths = c(2, 1))
 
 ## Package citation {#package-citation}
 
-Using synoptReg for research publication? Please **cite it**! I'm an early career scientist and every citation matters.
-
-***Lemus-Canovas, M., Lopez-Bustins, J.A., Martin-Vide, J., Royé, D.***, 2019. *synoptReg: An R package for computing a synoptic climate classification and a spatial regionalization of environmental data*. Environmental Modelling & Software, Vol. 118,114-119pp, ISSN 1364-8152, <https://doi.org/10.1016/j.envsoft.2019.04.006>
+...
 
 ## Contact {#contact}
 
-Feel free to contact me: [mlemus\@ub.edu](mailto:mlemus@ub.edu){.email}
+Feel free to contact me: [marc.lemusicanovas\@eurac.edu](mailto:marc.lemusicanovas@eurac.edu){.email}
