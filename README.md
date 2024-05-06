@@ -89,7 +89,7 @@ ggplot() +
         legend.position = c(0.7,0.15),
         legend.direction = "horizontal")
 ```
-<img src="img/event_z500.png" alt="" width="400"/>
+<img src="img/event_z500.png" alt="" width="600"/>
 
 
 ``` r
@@ -107,7 +107,7 @@ labs(y = "RMSD", subtitle = "Analogs quality")+
 theme_bw()+
 theme(axis.title.x = element_blank())
 ```
-<img src="img/analogs_quality.png" alt="" width="500"/>
+<img src="img/analogs_quality.png" alt="" width="350"/>
 
 ```r
 # Reporting analogues frequency 
