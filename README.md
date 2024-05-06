@@ -106,8 +106,8 @@ labs(y = "RMSD", subtitle = "Analogs quality")+
 theme_bw()+
 theme(axis.title.x = element_blank())
 ```
-<img src="img/analogs_quality.png" alt="" width="200"/>
-``` r
+<img src="img/analogs_quality.png" alt="" width="300"/>
+```r
 # Reporting analogues frequency trend
 
 annual_counts <- analogs$analogs_full_period %>% mutate(yr = year(time)) %>% 
@@ -180,7 +180,6 @@ b <- ggplot() +
         legend.direction = "horizontal")
         
 a+b + plot_layout(widths = c(2, 1))
-
 ```
 ![](img/bootstrap_maps_t2m.png){width=100%}
 
