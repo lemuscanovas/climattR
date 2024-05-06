@@ -89,7 +89,8 @@ ggplot() +
         legend.position = c(0.7,0.15),
         legend.direction = "horizontal")
 ```
-![](img/event_z500.png)
+<img src="img/event_z500.png" alt="" width="400"/>
+
 
 ``` r
 ## Searching analogs
@@ -121,7 +122,7 @@ labs(y = "Frequency", subtitle = "Analogs trend")+
 theme_bw()+
 theme(axis.title.x = element_blank())
 ```
-![](img/analogs_annual_freq.png){width=75%}
+<img src="img/analogs_annual_freq.png" alt="" width="400"/>
 
 ```r
 ## Bootstrap heatwave reconstruction for a counterfactual/factual world
@@ -182,7 +183,7 @@ b <- ggplot() +
         
 a+b + plot_layout(widths = c(2, 1))
 ```
-![](img/bootstrap_maps_t2m.png){width=100%}
+![](img/bootstrap_maps_t2m.png)
 
 ## Package citation {#package-citation}
 
