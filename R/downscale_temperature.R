@@ -55,8 +55,8 @@ downscale_temperature <- function(x, dem = NULL, disagg, z = 6) {
     nn <- periods[ii]
     dd <- x[[ii]] %>% app("mean")
 
-    day_sf <- as.points(dd) %>% st_as_sf() %>%
-      cbind(st_coordinates(.))
+    day_sf <- as.points(dd) %>% sf::st_as_sf() %>%
+      cbind(sf::st_coordinates(.))
     
     day_sf_ <- bind_cols(day_sf,
                         terra::extract(x_coarse,
@@ -65,11 +65,11 @@ downscale_temperature <- function(x, dem = NULL, disagg, z = 6) {
       filter(!is.na(elev)) %>%
       rename("z"= 1)
     
-    target <- as.points(x_fine) %>% st_as_sf() %>%
-      cbind(st_coordinates(.)) %>% rename("elev" = 1)
+    target <- as.points(x_fine) %>% sf::st_as_sf() %>%
+      cbind(sf::st_coordinates(.)) %>% rename("elev" = 1)
     
     
-    regression <- gam(z~s(X)+s(Y)+s(elev),
+    regression <- gam::gam(z~s(X)+s(Y)+s(elev),
                       data = as.data.frame(day_sf_) %>% select(-ncol(.)))
     
     step_regression <- step.Gam(regression,trace = F,
