@@ -54,9 +54,8 @@ borders <- gisco_get_coastallines()
 ``` r
 # Loading daily Z500 and t2m data for 1950-2023 summers
 
-Z500 <- rast("inst/testdata/z500_0509_1950_2023_eu.nc")
-
-tx <- rast("inst/testdata/tx_0608_1950_2023_weu.nc") /10
+Z500 <- rast("inst/testdata/eobs_weu/z500_0509_1950_2023_eu.nc")
+tx <- rast("inst/testdata/eobs_weu/tx_0608_1950_2023_weu.nc") /10
 
 ```
 
@@ -129,7 +128,7 @@ theme(axis.title.x = element_blank())
 
 ```r
 ## Bootstrap heatwave tasmean reconstruction for a counterfactual/factual world
-bs_spatial_analogs <- bs_spatanalogs(x = tx,
+bs_sp_tx <- bs_spatanalogs(x = tx,
                                      analogs = analogs$analogs_subperiods,
                                      n = 1000,
                                      event_fun = "mean", 
@@ -145,7 +144,7 @@ all <- c(counterfactual,factual,dif)
 names(all) <- c(names(bs_spatial_analogs),"dif")
 extent <- ext(all)                
 
-a <- ggplot() +
+a_tx <- ggplot() +
   geom_spatraster(data = all[[-3]],interpolate = T) +
   geom_spatraster_contour_text(data = all[[-3]], breaks = seq(-1, 6, 1)) +
   geom_sf(data = borders, fill = "transparent", color = "black")+
@@ -165,7 +164,7 @@ a <- ggplot() +
         legend.position = "bottom",
         legend.direction = "horizontal")
         
-b <- ggplot() +
+b_tx <- ggplot() +
   geom_spatraster(data = all[[3]],interpolate = T) +
   geom_spatraster_contour_text(data = all[[3]], breaks = seq(-1, 6, 1)) +
   geom_sf(data = borders, fill = "transparent", color = "black")+
@@ -186,12 +185,12 @@ b <- ggplot() +
         legend.position = "bottom",
         legend.direction = "horizontal")
         
-a+b + plot_layout(widths = c(2, 1))
+a_tx+b_tx + plot_layout(widths = c(2, 1))
 ```
 
 ```r
 ## Bootstrap heatwave Z500 reconstruction for a counterfactual/factual world
-bs_spatial_analogs <- bs_spatanalogs(x = Z500,
+bs_sp_z500 <- bs_spatanalogs(x = Z500,
                                      analogs = analogs$analogs_subperiods,
                                      n = 1000,
                                      event_fun = "mean", 
@@ -207,12 +206,12 @@ all <- c(counterfactual,factual,dif)
 names(all) <- c(names(bs_spatial_analogs),"dif")
 extent <- ext(all)                
 
-a <- ggplot() +
+a_z500 <- ggplot() +
   geom_spatraster(data = all[[-3]],interpolate = T) +
-  geom_spatraster_contour_text(data = all[[-3]], breaks = seq(-1, 6, 1)) +
+  geom_spatraster_contour_text(data = all[[-3]], breaks = seq(-200, 200, 20)) +
   geom_sf(data = borders, fill = "transparent", color = "black")+
   facet_wrap(~lyr, ncol = 3) +
-  metR::scale_fill_divergent("ºC", na.value = "transparent")+
+  metR::scale_fill_divergent("m", na.value = "transparent")+
   guides(fill = guide_colourbar(theme = theme(
          legend.key.width  = unit(8, "lines"),
          legend.key.height = unit(0.5, "lines"),
@@ -227,12 +226,12 @@ a <- ggplot() +
         legend.position = "bottom",
         legend.direction = "horizontal")
         
-b <- ggplot() +
+b_z500 <- ggplot() +
   geom_spatraster(data = all[[3]],interpolate = T) +
-  geom_spatraster_contour_text(data = all[[3]], breaks = seq(-1, 6, 1)) +
+  geom_spatraster_contour_text(data = all[[3]], breaks = seq(-20, 20, 5)) +
   geom_sf(data = borders, fill = "transparent", color = "black")+
   facet_wrap(~lyr, ncol = 3) +
-  metR::scale_fill_divergent("ºC", na.value = "transparent")+
+  metR::scale_fill_divergent("m", na.value = "transparent")+
   guides(fill = guide_colourbar(theme = theme(
          legend.key.width  = unit(8, "lines"),
          legend.key.height = unit(0.5, "lines"),
@@ -247,7 +246,7 @@ b <- ggplot() +
         legend.position = "bottom",
         legend.direction = "horizontal")
         
-a+b + plot_layout(widths = c(2, 1))
+(a_z500+b_z500 + plot_layout(widths = c(2, 1)))
 ```
 ![](img/bootstrap_maps_t2m.png)
 
