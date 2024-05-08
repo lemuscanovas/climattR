@@ -1,6 +1,6 @@
 # climattR <img src="img/logo.png" align="right" width="140"/>
 
-# `climattR`: Rapid climate extreme event attribution for regional and local areas
+# Rapid climate extreme event attribution for regional and local areas
 
 [![CRAN status](https://www.r-pkg.org/badges/version/climattR)](https://cran.r-project.org/package=climattR) [![Project Status: Active -- The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/latest/wip.svg)](http://www.repostatus.org/#wip)
 
@@ -28,7 +28,7 @@ To date there is no R package available which have implemented the simple but ef
 
 ### Installation {#installation}
 
-```{r}
+``` r
 # To install the latest version from Github:
 # install.packages("remotes")
 # remotes::install_github("lemuscanovas/climattR")
@@ -54,9 +54,11 @@ borders <- gisco_get_coastallines()
 ``` r
 # Loading daily Z500 and t2m data for 1950-2023 summers
 
-Z500 <- rast("inst/testdata/eobs_weu/z500_0509_1950_2023_eu.nc")
-tx <- rast("inst/testdata/eobs_weu/tx_0608_1950_2023_weu.nc") /10
+Z500_file <-  system.file("extdata", "z500_0509_1950_2023_eu.nc", package = "climattR")
+Tx_file <-  system.file("extdata", "tx_0608_1950_2023.nc", package = "climattR")
 
+Z500 <- rast(Z500_file) 
+Tx <- rast(Tx_file)
 ```
 
 ``` r
@@ -91,7 +93,7 @@ ggplot() +
         legend.position = c(0.7,0.15),
         legend.direction = "horizontal")
 ```
-<img src="img/event_z500.png" alt="" width="600"/>
+<img src="man/figures/event_z500.png" alt="" width="800"/>
 
 
 ``` r
@@ -109,7 +111,7 @@ labs(y = "RMSD", subtitle = "Analogs quality")+
 theme_bw()+
 theme(axis.title.x = element_blank())
 ```
-<img src="img/analogs_quality.png" alt="" width="300"/>
+<img src="man/figures/analogs_quality.png" alt="" width="300"/>
 
 ```r
 # Reporting analogues frequency 
@@ -124,69 +126,7 @@ labs(y = "Frequency", subtitle = "Analogs trend")+
 theme_bw()+
 theme(axis.title.x = element_blank())
 ```
-<img src="img/analogs_annual_freq.png" alt="" width="450"/>
-
-```r
-## Bootstrap heatwave tasmean reconstruction for a counterfactual/factual world
-bs_sp_tx <- bs_spatanalogs(x = tx,
-                                     analogs = analogs$analogs_subperiods,
-                                     n = 1000,
-                                     event_fun = "mean", 
-                                     detrend = F,
-                                     replace = T,
-                                     anom = T,
-                                     ref_period = c(1950,2022))
-                                     
-counterfactual <- ((bs_spatial_analogs$`1951-1980`) %>% app("mean"))
-factual <- ((bs_spatial_analogs$`1993-2022`) %>% app("mean"))
-dif <- factual - counterfactual
-all <- c(counterfactual,factual,dif)
-names(all) <- c(names(bs_spatial_analogs),"dif")
-extent <- ext(all)                
-
-a_tx <- ggplot() +
-  geom_spatraster(data = all[[-3]],interpolate = T) +
-  geom_spatraster_contour_text(data = all[[-3]], breaks = seq(-1, 6, 1)) +
-  geom_sf(data = borders, fill = "transparent", color = "black")+
-  facet_wrap(~lyr, ncol = 3) +
-  metR::scale_fill_divergent("ºC", na.value = "transparent")+
-  guides(fill = guide_colourbar(theme = theme(
-         legend.key.width  = unit(8, "lines"),
-         legend.key.height = unit(0.5, "lines"),
-         legend.title.position = "top",
-         legend.title = element_text(hjust = 0.5)))) + 
-  scale_x_continuous(limits = c(extent[1],extent[2]), expand = c(0,0))+
-  scale_y_continuous(limits = c(extent[3],extent[4]), expand = c(0,0))+
-  theme_bw()+
-  theme(axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        strip.background = element_blank(),
-        legend.position = "bottom",
-        legend.direction = "horizontal")
-        
-b_tx <- ggplot() +
-  geom_spatraster(data = all[[3]],interpolate = T) +
-  geom_spatraster_contour_text(data = all[[3]], breaks = seq(-1, 6, 1)) +
-  geom_sf(data = borders, fill = "transparent", color = "black")+
-  facet_wrap(~lyr, ncol = 3) +
-  scale_fill_steps2(midpoint = 0,low = "blue",mid = "white",high = "red",name = "ºC",
-  na.value = "transparent", breaks = seq(-10,10,1))+  
-  guides(fill = guide_colourbar(theme = theme(
-         legend.key.width  = unit(8, "lines"),
-         legend.key.height = unit(0.5, "lines"),
-         legend.title.position = "top",
-         legend.title = element_text(hjust = 0.5)))) + 
-  scale_x_continuous(limits = c(extent[1],extent[2]), expand = c(0,0))+
-  scale_y_continuous(limits = c(extent[3],extent[4]), expand = c(0,0))+
-  theme_bw()+
-  theme(axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        strip.background = element_blank(),
-        legend.position = "bottom",
-        legend.direction = "horizontal")
-        
-a_tx+b_tx + plot_layout(widths = c(2, 1))
-```
+<img src="man/figures/analogs_annual_freq.png" alt="" width="500"/>
 
 ```r
 ## Bootstrap heatwave Z500 reconstruction for a counterfactual/factual world
@@ -199,11 +139,11 @@ bs_sp_z500 <- bs_spatanalogs(x = Z500,
                                      anom = T,
                                      ref_period = c(1950,2022))
                                      
-counterfactual <- ((bs_spatial_analogs$`1951-1980`) %>% app("mean"))
-factual <- ((bs_spatial_analogs$`1993-2022`) %>% app("mean"))
+counterfactual <- ((bs_sp_z500$`1951-1980`) %>% app("mean"))
+factual <- ((bs_sp_z500$`1993-2022`) %>% app("mean"))
 dif <- factual - counterfactual
 all <- c(counterfactual,factual,dif)
-names(all) <- c(names(bs_spatial_analogs),"dif")
+names(all) <- c(names(bs_sp_z500),"dif")
 extent <- ext(all)                
 
 a_z500 <- ggplot() +
@@ -246,9 +186,73 @@ b_z500 <- ggplot() +
         legend.position = "bottom",
         legend.direction = "horizontal")
         
-(a_z500+b_z500 + plot_layout(widths = c(2, 1)))
 ```
-![](img/bootstrap_maps_t2m.png)
+
+```r
+## Bootstrap heatwave tasmean reconstruction for a counterfactual/factual world
+bs_sp_tx <- bs_spatanalogs(x = Tx,
+                                     analogs = analogs$analogs_subperiods,
+                                     n = 1000,
+                                     event_fun = "mean", 
+                                     detrend = F,
+                                     replace = T,
+                                     anom = T,
+                                     ref_period = c(1950,2022))
+                                     
+counterfactual <- ((bs_sp_tx$`1951-1980`) %>% app("mean"))
+factual <- ((bs_sp_tx$`1993-2022`) %>% app("mean"))
+dif <- factual - counterfactual
+all <- c(counterfactual,factual,dif)/10
+names(all) <- c(names(bs_sp_tx),"dif")
+extent <- ext(all)                
+
+a_tx <- ggplot() +
+  geom_spatraster(data = all[[-3]],interpolate = T) +
+  geom_spatraster_contour_text(data = all[[-3]], breaks = seq(-1, 6, 1)) +
+  geom_sf(data = borders, fill = "transparent", color = "black")+
+  facet_wrap(~lyr, ncol = 3) +
+  metR::scale_fill_divergent("ºC", na.value = "transparent")+
+  guides(fill = guide_colourbar(theme = theme(
+         legend.key.width  = unit(8, "lines"),
+         legend.key.height = unit(0.5, "lines"),
+         legend.title.position = "top",
+         legend.title = element_text(hjust = 0.5)))) + 
+  scale_x_continuous(limits = c(extent[1],extent[2]), expand = c(0,0))+
+  scale_y_continuous(limits = c(extent[3],extent[4]), expand = c(0,0))+
+  theme_bw()+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "horizontal")
+        
+b_tx <- ggplot() +
+  geom_spatraster(data = all[[3]],interpolate = T) +
+  geom_spatraster_contour_text(data = all[[3]], breaks = seq(-1, 6, 1)) +
+  geom_sf(data = borders, fill = "transparent", color = "black")+
+  facet_wrap(~lyr, ncol = 3) +
+  scale_fill_steps2(midpoint = 0,low = "blue",mid = "white",high = "red",name = "ºC",
+  na.value = "transparent", breaks = seq(-10,10,1), limits = c(0,4))+  
+  guides(fill = guide_colourbar(theme = theme(
+         legend.key.width  = unit(8, "lines"),
+         legend.key.height = unit(0.5, "lines"),
+         legend.title.position = "top",
+         legend.title = element_text(hjust = 0.5)))) + 
+  scale_x_continuous(limits = c(extent[1],extent[2]), expand = c(0,0))+
+  scale_y_continuous(limits = c(extent[3],extent[4]), expand = c(0,0))+
+  theme_bw()+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "horizontal")
+       
+# Z500 and T2m reconstructions composites 
+(a_z500+b_z500 + plot_layout(widths = c(2, 1))) / (a_tx+b_tx + plot_layout(widths = c(2, 1)))
+```
+
+
+<img src="man/figures/bootstrap_maps_t2m_z500.png" alt="" width="700"/>
 
 ## Package citation {#package-citation}
 
