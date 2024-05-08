@@ -40,6 +40,7 @@ if (inherits(x, "SpatRaster")) {
     dat <- rast(x)
   }
   
+  proj_ <- crs(dat)
   # slect analog fields
   dat <- dat[[which(terra::time(dat) %in% unique(analogs$time))]]
   world <- giscoR::gisco_get_coastallines(resolution = 10)
@@ -108,6 +109,7 @@ if (inherits(x, "SpatRaster")) {
   
   
   res <- pblapply(seq_along(times),FUN = .downscaling_reconstructions) %>% rast()
+  crs(res) <-proj_
   return(res)
 }
 
