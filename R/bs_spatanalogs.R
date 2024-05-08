@@ -44,6 +44,8 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
     dat <- rast(x)
   }
   
+  dat <- dat * 1 # stored in disk (?)
+  
   time_dat <- as_date(time(dat)) # if hourly it will be converted to daily
   
   if(is.Date(time_dat) == F){
