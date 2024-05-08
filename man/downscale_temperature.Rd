@@ -4,10 +4,12 @@
 \alias{downscale_temperature}
 \title{Downscale Temperature Using Spatial Analogs}
 \usage{
-downscale_temperature(x, dem = NULL, disagg, z = 6)
+downscale_temperature(x, analogs = analogs, dem = NULL, disagg, z = 6)
 }
 \arguments{
-\item{x}{A list of raster layers representing different periods or scenarios.}
+\item{x}{A list of raster layers or a SpatRaster object representing different periods or scenarios.}
+
+\item{analogs}{A list specifying the time periods for the analogs used in downscaling.}
 
 \item{dem}{An optional digital elevation model raster. If not provided, it will be automatically
 downloaded using the `elevatr` package.}
@@ -28,6 +30,7 @@ transformations. The function uses Kriging for spatial interpolation.
 \examples{
 # Assuming 'temp_rasters' is a list of raster layers:
 # temp_rasters <- list(rast1, rast2, rast3)
+# analogs <- list(time = c("2001-01-01", "2001-01-02", "2001-01-03"))
 # dem_raster <- rast("path_to_dem.tif")
-# downscaled_temps <- downscale_temperature(temp_rasters, dem = dem_raster, disagg = 2, z = 6)
+# downscaled_temps <- downscale_temperature(temp_rasters, analogs = analogs, dem = dem_raster, disagg = 2, z = 6)
 }
