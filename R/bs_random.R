@@ -71,7 +71,7 @@ bs_random <- function(x, periods = c(1951,1980,1991,2020), n = 1000, event_fun =
       filter(year(time) >= ref_period[1], year(time) <= ref_period[2]) %>%
       summarise(ref_mean = mean(var, na.rm = T))
     
-    dat <- dat$var - ref_mean$ref_mean
+    dat$var <- dat$var - ref_mean$ref_mean
     
   }else if(isFALSE(anom)){
     
