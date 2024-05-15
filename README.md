@@ -1,4 +1,4 @@
-# climattR <img src="img/logo.png" align="right" width="140"/>
+# climattR <img src="man/figures/logo.png" align="right" width="140"/>
 
 # Rapid climate extreme event attribution for regional and local areas
 
