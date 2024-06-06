@@ -117,7 +117,7 @@ message(paste0("bootstrapping the event ", n," times in the ", yr_split[ii], ":"
   names(sim_bs) <- paste0("sim",1:n)
   
   if(isTRUE(anom)){
-    sim_bs <- sim_bs - project(ref_mean, sim_bs)
+    sim_bs <- sim_bs - terra::project(ref_mean, sim_bs)
   }
   
   sim_bs_l[[ii]] <- sim_bs
