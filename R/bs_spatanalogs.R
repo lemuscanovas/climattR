@@ -87,7 +87,7 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
   }
 
   ts_nc <-tibble(id = seq_along(time(dat)), # id to subset
-                 time = time_dat) 
+                 time = unique(time_dat)) 
   
   # Calculation of bootstrapped sd and mean for the different periods set ------
   yr_split <- analogs$period %>% 
