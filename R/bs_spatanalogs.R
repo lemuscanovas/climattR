@@ -56,7 +56,7 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
   message("Caution! if hourly data is provided then it is converted into daily mean.")
   
   if(length((time(dat))) != length(unique(time(dat)))){
-      dat <- dat %>% tapp(dat, as.factor(time_dat),"mean", na.rm = T)
+      dat <- dat %>% tapp(as.factor(time_dat),"mean", na.rm = T)
     }
   
   # Apply detrending if specified
