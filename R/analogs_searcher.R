@@ -71,7 +71,7 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
         
         splitted_data_l[[ff]] <- bind_cols(coords, ts_wo_event_tidy) %>%
           pivot_longer(names_to = "time",values_to = "var_hist", 3:ncol(.)) %>%
-          mutate(time = str_replace(time,"X",""),
+          mutate(time = str_replace(time,"X.",""),
                  time = if_else(
                    grepl("^\\d{1,3}-", time),
                    sprintf("%04d%s", as.numeric(sub("-.*", "", time)), sub("^\\d{1,3}", "", time)),
@@ -91,7 +91,7 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
 
     ts_wo_event_df_l[[var]] <- bind_cols(coords, ts_wo_event_tidy) %>%
       pivot_longer(names_to = "time",values_to = "var_hist", 3:ncol(.)) %>%
-      mutate(time = str_replace(time,"X",""),
+      mutate(time = str_replace(time,"X.",""),
              time = if_else(
                grepl("^\\d{1,3}-", time),
                sprintf("%04d%s", as.numeric(sub("-.*", "", time)), sub("^\\d{1,3}", "", time)),
