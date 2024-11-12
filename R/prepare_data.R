@@ -71,7 +71,7 @@ prepare_data <- function(x, level = NULL, event_dates,
         max(as_date(event_dates))+time_window, 
         by = "day") %>%
       str_sub(start = -5,end = -1) %>%
-      str_c(x,sep = "-") %>% 
+      str_c(str_pad(x, width = 4, side = "left", pad = 0),sep = "-") %>% 
       as.vector()
     }
     time_window_an <-  sapply(yr_seq, FUN = .time_windows) %>% mdy()
