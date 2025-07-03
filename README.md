@@ -1,4 +1,8 @@
-# climattR <img src="man/figures/logo.png" align="right" width="140"/>
+# climattR <img src="man/figures/logo.png" align="right" width="140"/> 
+
+[![DOI](https://zenodo.org/badge/518908035.svg)](https://doi.org/10.5281/zenodo.15772289)
+
+
 
 # Rapid climate extreme event attribution for regional and local areas
 
