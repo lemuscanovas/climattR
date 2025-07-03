@@ -18,6 +18,10 @@ Imports:
     lubridate, 
     magrittr,
     sf,
+    automap,
+    gstat,
+    gam,
+    giscoR,
     terra, 
     stringr, 
     tidyr,
@@ -27,4 +31,4 @@ Imports:
 Suggests:
     ncdf4,
 NeedsCompilation: no
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
