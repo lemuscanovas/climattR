@@ -19,9 +19,10 @@
 #' @importFrom tidyr pivot_longer
 #' @importFrom stats setNames
 #' @examples
-#' ts_wo_event_example <- list(rast(system.file("extdata", "example1.nc", package = "yourPackageName")))
+#' \dontrun{ts_wo_event_example <- list(rast(system.file("extdata", "example1.nc", package = "yourPackageName")))
 #' event_example <- list(rast(system.file("extdata", "example2.nc", package = "yourPackageName")))
 #' result <- analogs_searcher(ts_wo_event_example, event_example, n = 5, periods = c(1951,1980,1991,2020), metric = "rmsd")
+#' }
 #' @export
 
 analogs_searcher <- function(ts_wo_event, event, n = 20, 
