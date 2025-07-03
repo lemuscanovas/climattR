@@ -23,8 +23,8 @@
 #' @importFrom dplyr filter first last
 #' @importFrom stringr str_detect str_sub str_c
 #' @importFrom pracma polyfit polyval
-#' @importFrom("methods", "as")
-#' @importFrom("stats", "cor", "dist", "formula", "lm", "sd", "step","var")
+#' @importFrom methods as
+#' @importFrom stats cor dist formula lm sd step var
 #' @examples
 #' \dontrun{nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
 #' event_dates <- as.Date(c("2022-06-01"))
