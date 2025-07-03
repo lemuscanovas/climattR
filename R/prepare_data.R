@@ -19,14 +19,16 @@
 #' @importFrom terra rast time app
 #' @importFrom lubridate as_date year month is.Date
 #' @importFrom magrittr %>% 
-#' @importFrom tibble tibble
+#' @importFrom tibble tibble as_tibble
 #' @importFrom dplyr filter first last
 #' @importFrom stringr str_detect str_sub str_c
 #' @importFrom pracma polyfit polyval
+#' @importFrom("methods", "as")
+#' @importFrom("stats", "cor", "dist", "formula", "lm", "sd", "step","var")
 #' @examples
-#' nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
+#' \dontrun{nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
 #' event_dates <- as.Date(c("2022-06-01"))
-#' result <- prepare_data(nc_file, event_dates = event_dates, time_window = 30)
+#' result <- prepare_data(nc_file, event_dates = event_dates, time_window = 30)}
 #' @export
 
 prepare_data <- function(x, level = NULL, event_dates,

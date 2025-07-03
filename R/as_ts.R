@@ -19,10 +19,11 @@
 #' @importFrom pracma polyfit polyval
 #' @importFrom stats setNames
 #' @examples
+#' \dontrun{
 #' # Assuming 'data.nc' contains a SpatRaster with time variable
 #' raster_path <- system.file("extdata", "data.nc", package = "yourPackageName")
 #' raster_data <- rast(raster_path)
-#' time_series_data <- as_ts(raster_data, detrend = TRUE, k = 2, hour2day_fun = "mean")
+#' time_series_data <- as_ts(raster_data, detrend = TRUE, k = 2, hour2day_fun = "mean")}
 #' @export
 
 as_ts <- function(x, 

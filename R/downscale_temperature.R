@@ -23,11 +23,12 @@
 #' @import gam
 #' @import giscoR
 #' @examples
+#' \dontrun{
 #' # Assuming 'temp_rasters' is a list of raster layers:
 #' # temp_rasters <- list(rast1, rast2, rast3)
 #' # analogs <- list(time = c("2001-01-01", "2001-01-02", "2001-01-03"))
 #' # dem_raster <- rast("path_to_dem.tif")
-#' # downscaled_temps <- downscale_temperature(temp_rasters, analogs = analogs, dem = dem_raster, disagg = 2, z = 6)
+#' # downscaled_temps <- downscale_temperature(temp_rasters, analogs = analogs, dem = dem_raster, disagg = 2, z = 6)}
 #' @export
 
 downscale_temperature <- function(x, analogs= analogs, dem = NULL, disagg, z = 6) {

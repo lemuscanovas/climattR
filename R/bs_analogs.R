@@ -22,11 +22,13 @@
 #' @importFrom pbapply pblapply
 #' @importFrom pracma polyfit polyval
 #' @examples
+#' \dontrun{
 #' data <- data.frame(time = seq(as.Date('2020-01-01'), by = 'day', length.out = 365),
 #'                    var = rnorm(365))
 #' analogs <- data.frame(time_obj = seq(as.Date('2020-01-01'), by = 'month', length.out = 12),
 #'                       period = rep('2020', 12))
 #' results <- bs_analogs(data, analogs, n = 100, event_fun = "mean", anom = TRUE, ref_period = c(2019, 2021))
+#' }
 #' @export
 
 bs_analogs <- function(x, 
