@@ -17,14 +17,15 @@
 #'         and `event`, the timeseries data for the event dates.
 #'
 #' @importFrom terra rast time app
-#' @importFrom lubridate as_date year month is.Date
+#' @importFrom lubridate as_date year month is.Date mdy 
 #' @importFrom magrittr %>% 
 #' @importFrom tibble tibble as_tibble
-#' @importFrom dplyr filter first last
+#' @import dplyr
 #' @importFrom stringr str_detect str_sub str_c
 #' @importFrom pracma polyfit polyval
 #' @importFrom methods as
 #' @importFrom stats cor dist formula lm sd step var
+#' @importFrom stringr str_replace str_pad
 #' @examples
 #' \dontrun{nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
 #' event_dates <- as.Date(c("2022-06-01"))
