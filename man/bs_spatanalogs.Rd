@@ -44,7 +44,8 @@ It allows for detrending, anomaly calculation, and custom event functions on a `
 The function returns a set of spatial datasets simulating possible scenarios.
 }
 \examples{
+\dontrun{
 dat_path <- system.file("extdata", "example.nc", package = "yourPackageName")
 analogs_data <- data.frame(time = as.Date('2021-01-01') + 0:10, period = rep('2021', 11))
-result <- bs_spatanalogs(dat_path, analogs_data, n = 100, event_fun = "mean", anom = TRUE, ref_period = c(1980, 2000))
+result <- bs_spatanalogs(dat_path, analogs_data, n = 100, event_fun = "mean", anom = TRUE, ref_period = c(1980, 2000))}
 }
