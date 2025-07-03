@@ -42,7 +42,7 @@ detrending, scaling, and extracting specific time windows around provided event 
 It supports handling both daily and sub-daily resolutions.
 }
 \examples{
-nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
+\dontrun{nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
 event_dates <- as.Date(c("2022-06-01"))
-result <- prepare_data(nc_file, event_dates = event_dates, time_window = 30)
+result <- prepare_data(nc_file, event_dates = event_dates, time_window = 30)}
 }

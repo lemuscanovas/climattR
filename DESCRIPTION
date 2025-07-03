@@ -7,7 +7,7 @@ Authors@R: c(
     person("Marc", "Lemus-Canovas", , "marc.lemusicanovas@eurac.edu", role = c("aut", "cre"), 
     comment = c(ORCID = "0000-0002-0925-3827")))
 Description: climattR is a toolbox for performing rapid attribution of extreme weather events using the flow analogs approach.
-License: GPL (>= 3)
+License: GPL (>= 3) + file LICENSE
 Maintainer: Marc Lemus-Canovas <marc.lemusicanovas@eurac.edu>
 URL: <https://github.com/lemuscanovas/climattR>
 BugReports: https://github.com/lemuscanovas/climattR/issues

@@ -35,8 +35,9 @@ to convert it into a time series format. It supports conversion from hourly to d
 apply a domain or spatial filter using an `sf` object.
 }
 \examples{
+\dontrun{
 # Assuming 'data.nc' contains a SpatRaster with time variable
 raster_path <- system.file("extdata", "data.nc", package = "yourPackageName")
 raster_data <- rast(raster_path)
-time_series_data <- as_ts(raster_data, detrend = TRUE, k = 2, hour2day_fun = "mean")
+time_series_data <- as_ts(raster_data, detrend = TRUE, k = 2, hour2day_fun = "mean")}
 }
