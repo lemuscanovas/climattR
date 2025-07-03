@@ -1,12 +1,12 @@
 # climattR <img src="man/figures/logo.png" align="right" width="140"/> 
 
-[![DOI](https://zenodo.org/badge/518908035.svg)](https://doi.org/10.5281/zenodo.15772289)
 
 
 
 # Rapid climate extreme event attribution for regional and local areas
 
-[![CRAN status](https://www.r-pkg.org/badges/version/climattR)](https://cran.r-project.org/package=climattR) [![Project Status: Active -- The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/latest/wip.svg)](http://www.repostatus.org/#wip)
+[![CRAN status](https://www.r-pkg.org/badges/version/climattR)](https://cran.r-project.org/package=climattR) [![Project Status: Active -- The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/latest/wip.svg)](http://www.repostatus.org/#wip) 
+[![DOI](https://zenodo.org/badge/518908035.svg)](https://doi.org/10.5281/zenodo.15772289)
 
 ## Overview
 
