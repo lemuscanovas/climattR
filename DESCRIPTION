@@ -33,5 +33,6 @@ Imports:
     pracma,
 Suggests:
     ncdf4,
+    methods
 NeedsCompilation: no
 RoxygenNote: 7.3.2
