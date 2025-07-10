@@ -18,7 +18,6 @@
 #' @import elevatr
 #' @import rnaturalearth
 #' @import gstat
-#' @import automap
 #' @import sf
 #' @import gam
 #' @import giscoR
@@ -90,7 +89,7 @@ if (inherits(x, "SpatRaster")) {
     
     xx <- formula(step_regression)
     
-    v_mod_OK <- automap::autofitVariogram(xx, as(day_sf_, "Spatial"))$var_model
+    # v_mod_OK <- automap::autofitVariogram(xx, as(day_sf_, "Spatial"))$var_model
     
     mod <- krige(
       formula=formula(step_regression),
