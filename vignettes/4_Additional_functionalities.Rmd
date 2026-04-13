@@ -1,22 +1,202 @@
 ---
-title: "4. Additional functionalities"
+title: "4. Advanced attribution: decomposition and return levels"
 author: "Marc Lemus-Canovas"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{4. Additional functionalities}
+  %\VignetteIndexEntry{4. Advanced attribution: decomposition and return levels}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+  collapse = TRUE, comment = "#>",
+  message = FALSE, warning = FALSE,
+  fig.align = "center", fig.width = 7, fig.height = 4.5
 )
 ```
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+## Prerequisites
+
+This vignette builds on the basics from vignette 1. We start from the
+bootstrap output and explore advanced analyses.
+
+```{r load}
+invisible(lapply(
+  list.files(rprojroot::find_package_root_file("R"), full.names = TRUE), source
+))
+library(terra); library(dplyr); library(ggplot2); library(extRemes)
+library(lubridate); library(stringr); library(tidyr); library(scales)
+library(pbapply); library(magrittr); library(tibble); library(pracma)
+
+Z500 <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "z500_0509_1950_2023_eu.nc"))
+TX <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "tx_0608_1950_2023.nc"))
+
+event_dates <- seq(as.Date("2023-07-12"), as.Date("2023-07-18"), by = "day")
+prep    <- prepare_data(Z500, event_dates = event_dates, time_window = 31)
+analogs <- analogs_searcher(
+  list(prep$ts_wo_event), list(prep$event),
+  n = 20, periods = c(1951, 1980, 1993, 2022)
+)
+ts_data <- as_ts(TX)
+
+# Base bootstrap (raw temperatures)
+bs_raw <- suppressMessages(
+  bs_analogs(ts_data, analogs$analogs_subperiods,
+             n = 500, anom = TRUE, ref_period = c(1950, 2022), detrend = FALSE)
+)
+obs <- mean(bs_raw$observed$var, na.rm = TRUE)
+cat("Observed anomaly:", round(obs, 2), "°C\n")
+```
+
+## Part 1 — Dynamic / thermodynamic decomposition
+
+The total attribution signal has two physical causes:
+
+- **Dynamic**: changes in atmospheric *circulation* between periods
+- **Thermodynamic**: direct background *warming* at fixed circulation
+
+We run a second bootstrap with **detrended** temperatures (`detrend = TRUE`).
+Detrending removes the long-term warming trend while keeping the day-to-day
+circulation variability. The dynamic component is then the difference
+between factual and counterfactual in the detrended world.
+
+$$\Delta T_\text{total} = \Delta T_\text{dyn} + \Delta T_\text{thermo}$$
+
+```{r decompose-run}
+# Detrended bootstrap (circulation signal only)
+bs_det <- suppressMessages(
+  bs_analogs(ts_data, analogs$analogs_subperiods,
+             n = 500, anom = TRUE, ref_period = c(1950, 2022), detrend = TRUE)
+)
+
+dcmp <- decompose_signal(bs_raw, bs_det)
+knitr::kable(dcmp, digits = 2,
+             caption = "Signal decomposition (°C). CI = 95% bootstrap confidence interval.")
+```
+
+```{r decompose-plot, fig.cap="The thermodynamic (warming) component clearly dominates the attribution signal for the 2023 heatwave. The slightly negative dynamic component means the 2023 circulation was marginally less extreme than average."}
+plot_decomposition(
+  dcmp,
+  title = "July 2023 heatwave — dynamic / thermodynamic decomposition"
+)
+```
+
+### Spatial decomposition maps
+
+The decomposition can also be visualised spatially using `bs_spatanalogs()`
+with both raw and detrended temperatures. Each pixel shows its own
+dynamic / thermodynamic breakdown.
+
+```{r spatial-decomp, fig.width=10, fig.height=8, fig.cap="Spatial decomposition of the attribution signal. Top row: raw bootstrap means (CF and factual). Bottom row: dynamic and thermodynamic components pixel by pixel."}
+# Spatial bootstrap — raw
+bs_sp_raw <- suppressMessages(
+  bs_spatanalogs(TX, analogs$analogs_subperiods, n = 50,
+                 anom = TRUE, ref_period = c(1950, 2022))
+)
+# Spatial bootstrap — detrended (removes long-term trend pixel by pixel)
+bs_sp_det <- suppressMessages(
+  bs_spatanalogs(TX, analogs$analogs_subperiods, n = 50,
+                 anom = TRUE, ref_period = c(1950, 2022),
+                 detrend = TRUE)   # <-- key difference
+)
+
+cf_raw  <- mean(bs_sp_raw[["1951-1980"]])
+fac_raw <- mean(bs_sp_raw[["1993-2022"]])
+total   <- fac_raw - cf_raw
+
+cf_det  <- mean(bs_sp_det[["1951-1980"]])
+fac_det <- mean(bs_sp_det[["1993-2022"]])
+dyn     <- fac_det - cf_det
+thermo  <- total - dyn
+
+to_df <- function(r, label) {
+  as.data.frame(r, xy = TRUE) |>
+    dplyr::rename(value = 3) |>
+    dplyr::mutate(panel = label)
+}
+
+plot_df <- dplyr::bind_rows(
+  to_df(cf_raw,  "CF mean (1951-1980)"),
+  to_df(fac_raw, "Factual mean (1993-2022)"),
+  to_df(dyn,     "Dynamic component"),
+  to_df(thermo,  "Thermodynamic component")
+)
+plot_df$panel <- factor(plot_df$panel,
+  levels = c("CF mean (1951-1980)", "Factual mean (1993-2022)",
+             "Dynamic component",   "Thermodynamic component"))
+
+lim <- quantile(abs(plot_df$value), 0.95, na.rm = TRUE)
+
+ggplot(plot_df, aes(x = x, y = y, fill = value)) +
+  geom_raster() +
+  facet_wrap(~panel, nrow = 2, ncol = 2) +
+  scale_fill_gradient2(
+    low = "#4575b4", mid = "white", high = "#d73027",
+    midpoint = 0, limits = c(-lim, lim),
+    oob = scales::squish, name = "\u00b0C"
+  ) +
+  coord_equal() +
+  labs(x = NULL, y = NULL,
+       title = "Spatial decomposition \u2014 July 2023 heatwave") +
+  theme_bw(base_size = 10) +
+  theme(strip.text = element_text(face = "bold"),
+        axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid = element_blank())
+```
+
+## Part 2 — Return level curves
+
+Return level curves show **how the full tail of the distribution has shifted**
+between the two climate worlds. A GEV distribution is fitted to each period's
+bootstrap samples separately.
+
+```{r rl, fig.cap="Return level curves with 95% CI bands. The vertical gap between the two curves at any return period is the attribution signal at that extremity. The dashed line shows the observed event."}
+rl <- return_level_curves(bs_raw, n_boot = 300)
+
+plot_return_levels(
+  rl,
+  obs_val = obs,
+  title   = "Return levels — July 2023 heatwave"
+)
+```
+
+Reading the plot: the **horizontal distance** between the observed line and each
+curve gives the return period of the event in that world. The **vertical
+distance** between the two curves at a fixed return period gives the shift in
+temperature anomaly (°C).
+
+## Part 3 — EVT-based attribution metrics
+
+Instead of counting exceedances empirically, `evt_metrics()` evaluates the
+probability of exceeding the observed threshold from the fitted EVT model.
+This gives smoother estimates, especially deep in the tails.
+
+```{r evt}
+m_gev <- evt_metrics(bs_raw, threshold = obs, type = "GEV", n_boot = 200)
+m_gpd <- evt_metrics(bs_raw, threshold = obs, type = "GP",  n_boot = 200)
+
+knitr::kable(
+  dplyr::bind_rows(
+    dplyr::mutate(m_gev, method = "GEV"),
+    dplyr::mutate(m_gpd, method = "GPD")
+  ) |> dplyr::select(method, return_period_cf, return_period_f,
+                     PR, PR_low, PR_high, FAR),
+  digits = 1,
+  caption = "EVT attribution metrics. RP = return period (number of bootstrap samples)."
+)
+```
+
+> **GEV vs. GPD**: GEV extrapolates further into the tail but with much wider
+> CI. GPD is more conservative — it only models values above the 75th
+> percentile threshold. For most attribution studies, GPD gives more honest
+> uncertainty bounds when sample size is moderate (n = 500–1000).
 
 - Never uses retina figures
 - Has a smaller default figure size

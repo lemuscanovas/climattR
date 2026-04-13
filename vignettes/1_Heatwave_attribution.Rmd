@@ -2,39 +2,177 @@
 title: "1. Heatwave attribution"
 author: "Marc Lemus-Canovas"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
   %\VignetteIndexEntry{1. Heatwave attribution}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+  collapse = TRUE, comment = "#>",
+  message = FALSE, warning = FALSE,
+  fig.align = "center", fig.width = 7, fig.height = 4
 )
 ```
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+## Goal
 
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+Attribute the **July 2023 western European heatwave** to climate change using
+flow analogues. The full pipeline runs in under 5 minutes on a laptop.
 
-## Vignette Info
+```{r load}
+# Development mode: source functions directly
+invisible(lapply(
+  list.files(rprojroot::find_package_root_file("R"), full.names = TRUE), source
+))
+library(terra); library(dplyr); library(ggplot2); library(scales)
+library(lubridate); library(stringr); library(tidyr)
+library(pbapply); library(magrittr); library(tibble)
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+Z500 <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "z500_0509_1950_2023_eu.nc"))
+TX <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "tx_0608_1950_2023.nc"))
+```
 
-## Styles
+## Step 1 — Define the event and build the analog pool
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+`prepare_data()` selects all days within ±31 calendar days of the event across
+all years. These are the candidate analog days.
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
+```{r prepare}
+event_dates <- seq(as.Date("2023-07-12"), as.Date("2023-07-18"), by = "day")
 
-## Figures
+prep <- prepare_data(
+  x           = Z500,
+  event_dates = event_dates,
+  time_window = 31
+)
+cat("Analog pool:", terra::nlyr(prep$ts_wo_event), "days\n")
+cat("Event:      ", terra::nlyr(prep$event), "days\n")
+```
+
+## Step 2 — Find the best analog days
+
+`analogs_searcher()` ranks every day in the pool by RMSD to the event Z500
+pattern and keeps the top 20 per sub-period.
+
+```{r analogs}
+analogs <- analogs_searcher(
+  ts_wo_event = list(prep$ts_wo_event),
+  event       = list(prep$event),
+  n           = 20,
+  periods     = c(1951, 1980,   # counterfactual world
+                  1993, 2022),  # factual world
+  metric      = "rmsd"
+)
+cat("Sub-period analogs:", nrow(analogs$analogs_subperiods), "\n")
+```
+
+## Step 3 — Bootstrap surface temperatures
+
+For each bootstrap replicate, one analog day is drawn per event day. The
+mean temperature anomaly across the multi-day event is computed.
+
+```{r bootstrap}
+ts_data <- as_ts(TX)   # convert raster → domain-mean time series
+
+bs <- suppressMessages(
+  bs_analogs(
+    x          = ts_data,
+    analogs    = analogs$analogs_subperiods,
+    n          = 500,
+    anom       = TRUE,
+    ref_period = c(1950, 2022)
+  )
+)
+print(bs)   # S3 summary
+```
+
+## Step 3b — Spatial bootstrap reconstruction
+
+`bs_spatanalogs()` produces the same bootstrap but returns full gridded fields
+instead of domain means. The mean over all replicates gives the expected
+temperature anomaly map for each climate world.
+
+```{r spatial-maps, fig.width=10, fig.height=4, fig.cap="Mean temperature anomaly (°C) reconstructed by flow analogues. Attribution signal = factual − counterfactual."}
+bs_sp <- suppressMessages(
+  bs_spatanalogs(
+    x          = TX,
+    analogs    = analogs$analogs_subperiods,
+    n          = 50,          # use n=1000 for publication results
+    anom       = TRUE,
+    ref_period = c(1950, 2022)
+  )
+)
+
+cf_mean  <- mean(bs_sp[["1951-1980"]])
+fac_mean <- mean(bs_sp[["1993-2022"]])
+signal   <- fac_mean - cf_mean
+
+# Convert to ggplot2 data frames
+to_df <- function(r, label) {
+  as.data.frame(r, xy = TRUE) |>
+    dplyr::rename(value = 3) |>
+    dplyr::mutate(panel = label)
+}
+
+plot_df <- dplyr::bind_rows(
+  to_df(cf_mean,  "Counterfactual (1951-1980)"),
+  to_df(fac_mean, "Factual (1993-2022)"),
+  to_df(signal,   "Attribution signal (F \u2212 CF)")
+)
+
+lim <- quantile(abs(plot_df$value), 0.95, na.rm = TRUE)
+
+ggplot(plot_df, aes(x = x, y = y, fill = value)) +
+  geom_raster() +
+  facet_wrap(~panel, nrow = 1) +
+  scale_fill_gradient2(
+    low = "#4575b4", mid = "white", high = "#d73027",
+    midpoint = 0, limits = c(-lim, lim),
+    oob = scales::squish, name = "\u00b0C"
+  ) +
+  coord_equal() +
+  labs(x = NULL, y = NULL,
+       title = "Bootstrap spatial reconstruction — July 2023 heatwave") +
+  theme_bw(base_size = 10) +
+  theme(strip.text = element_text(face = "bold"),
+        axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid = element_blank())
+```
+
+## Step 4 — Attribution metrics
+
+The observed event magnitude is used as the threshold. PR and FAR compare
+how often this threshold is exceeded in each climate world.
+
+```{r metrics}
+obs <- mean(bs$observed$var, na.rm = TRUE)
+cat("Observed anomaly:", round(obs, 2), "°C\n")
+
+m <- attribution_metrics(bs, threshold = obs, tail = "upper")
+knitr::kable(m, digits = 2,
+             caption = "Attribution metrics — July 2023 heatwave")
+```
+
+## Step 5 — Visualise the distributions
+
+```{r autoplot, fig.cap="Blue = counterfactual (1951–1980), red = factual (1993–2022). Dashed line = observed anomaly."}
+autoplot(bs,
+         threshold = obs,
+         xlab  = "Temperature anomaly (°C)",
+         title = "July 2023 heatwave — attribution distributions")
+```
+
+**Reading the plot**: the factual distribution (red) is shifted to the right
+relative to the counterfactual (blue). The observed event (dashed line) falls
+deep in the tail of the counterfactual world but is common in the factual one.
 
 The figure sizes have been customised so that you can easily put two images side-by-side. 
 

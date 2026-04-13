@@ -1,22 +1,127 @@
 ---
-title: "2. Storm attribution"
+title: "2. Adapting to different events and variables"
 author: "Marc Lemus-Canovas"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{2. Storm attribution}
+  %\VignetteIndexEntry{2. Adapting to different events and variables}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+  collapse = TRUE, comment = "#>",
+  message = FALSE, warning = FALSE,
+  fig.align = "center", fig.width = 7, fig.height = 4
 )
 ```
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+## The same framework, any surface variable
+
+The flow-analogue method is **variable-agnostic**: the circulation search
+always uses Z500, but any gridded surface variable (temperature, precipitation,
+wind speed, humidity) can be plugged in as the surface field.
+
+| Variable | Typical tail | Notes |
+|----------|-------------|-------|
+| TX (max temperature) | upper | shown in vignette 1 |
+| Precipitation | upper | divide by `scale` if stored as mm×10 |
+| Minimum temperature | lower | set `tail = "lower"` in `attribution_metrics()` |
+| Wind speed | upper | use daily max or mean |
+
+The only adaptation needed is the **temporal window**: the Z500 and surface
+NetCDF must overlap in time and cover the same season.
+
+## Example — 2003 European heatwave
+
+The August 2003 heatwave is one of the deadliest on record. We replicate the
+attribution using the same TX dataset.
+
+```{r load}
+invisible(lapply(
+  list.files(rprojroot::find_package_root_file("R"), full.names = TRUE), source
+))
+library(terra); library(dplyr); library(ggplot2)
+library(lubridate); library(stringr); library(tidyr)
+library(pbapply); library(magrittr); library(tibble)
+
+Z500 <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "z500_0509_1950_2023_eu.nc"))
+TX <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "tx_0608_1950_2023.nc"))
+```
+
+```{r event2003}
+# 2003 European heatwave peak: 1–12 August 2003
+event_2003 <- seq(as.Date("2003-08-01"), as.Date("2003-08-12"), by = "day")
+
+prep <- prepare_data(Z500, event_dates = event_2003, time_window = 31)
+
+analogs <- analogs_searcher(
+  list(prep$ts_wo_event), list(prep$event),
+  n = 20, periods = c(1951, 1980, 1993, 2022), metric = "rmsd"
+)
+
+ts_data <- as_ts(TX)
+bs_2003 <- suppressMessages(
+  bs_analogs(ts_data, analogs$analogs_subperiods,
+             n = 500, anom = TRUE, ref_period = c(1950, 2022))
+)
+print(bs_2003)
+```
+
+```{r metrics2003}
+obs_2003 <- mean(bs_2003$observed$var, na.rm = TRUE)
+cat("Observed 2003 anomaly:", round(obs_2003, 2), "°C\n")
+
+m_2003 <- attribution_metrics(bs_2003, threshold = obs_2003, tail = "upper")
+knitr::kable(m_2003, digits = 2,
+             caption = "Attribution metrics — August 2003 heatwave")
+```
+
+```{r plot2003, fig.cap="Distributions for the 2003 heatwave. Note that both distributions overlap more than 2023 — the 2003 event was partially explainable without climate change."}
+autoplot(bs_2003, threshold = obs_2003,
+         xlab  = "Temperature anomaly (°C)",
+         title = "August 2003 heatwave — attribution distributions")
+```
+
+## Using precipitation data
+
+For precipitation attribution the workflow is identical. The only things that
+change are the surface NetCDF and the tail direction:
+
+```{r precip, eval=FALSE}
+# Load your precipitation raster (daily, mm or mm×10)
+PR <- terra::rast("path/to/precip.nc")
+
+# Convert to time series (domain mean)
+ts_pr <- as_ts(PR)
+
+# Bootstrap — same analogs, different surface
+bs_pr <- bs_analogs(ts_pr, analogs$analogs_subperiods,
+                    n = 500, anom = TRUE, ref_period = c(1950, 2022))
+
+# For a wet extreme use tail = "upper"
+obs_pr <- mean(bs_pr$observed$var, na.rm = TRUE)
+attribution_metrics(bs_pr, threshold = obs_pr, tail = "upper")
+
+# For a drought (dry extreme) use tail = "lower"
+attribution_metrics(bs_pr, threshold = obs_pr, tail = "lower")
+```
+
+## Choosing the reference period
+
+The `ref_period` in `bs_analogs()` sets the climatological baseline used to
+compute anomalies:
+
+- Use the **full data span** (e.g. `c(1950, 2022)`) for the broadest baseline.
+- Use a **standard climatology** (e.g. `c(1981, 2010)`) for comparability with
+  operational products.
+- Set `anom = FALSE` to work in absolute units (useful for precipitation or wind).
 
 - Never uses retina figures
 - Has a smaller default figure size

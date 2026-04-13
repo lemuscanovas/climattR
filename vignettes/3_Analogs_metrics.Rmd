@@ -1,22 +1,140 @@
 ---
-title: "3. Analogs metrics"
+title: "3. Understanding analog metrics"
 author: "Marc Lemus-Canovas"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{3. Analogs metrics}
+  %\VignetteIndexEntry{3. Understanding analog metrics}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+  collapse = TRUE, comment = "#>",
+  message = FALSE, warning = FALSE,
+  fig.align = "center", fig.width = 7, fig.height = 4
 )
 ```
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+## What is an analog?
+
+An **analog day** is a historical day whose large-scale circulation (Z500)
+resembles the target event. The closer the Z500 pattern, the better the analog.
+
+`analogs_searcher()` supports three distance metrics:
+
+| Metric | Formula | Sensitive to |
+|--------|---------|-------------|
+| `rmsd` | $\sqrt{\frac{1}{n}\sum(z_i - e_i)^2}$ | Absolute differences |
+| `euclidean` | $\sqrt{\sum(z_i - e_i)^2}$ | Absolute differences (not normalised) |
+| `pearson` | $1 - r(z, e)$ | Pattern shape only, not amplitude |
+
+```{r load}
+invisible(lapply(
+  list.files(rprojroot::find_package_root_file("R"), full.names = TRUE), source
+))
+library(terra); library(dplyr); library(ggplot2); library(tidyr)
+library(lubridate); library(stringr); library(pbapply)
+library(magrittr); library(tibble)
+
+Z500 <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "z500_0509_1950_2023_eu.nc"))
+TX <- terra::rast(
+  rprojroot::find_package_root_file("inst", "extdata", "tx_0608_1950_2023.nc"))
+
+event_dates <- seq(as.Date("2023-07-12"), as.Date("2023-07-18"), by = "day")
+prep <- prepare_data(Z500, event_dates = event_dates, time_window = 31)
+```
+
+## Comparing the three metrics
+
+```{r compare-metrics, fig.height=5, fig.cap="Distribution of analog RMSD distances per period and metric. Lower = better analogs."}
+metrics_list <- lapply(c("rmsd", "euclidean", "pearson"), function(m) {
+  a <- analogs_searcher(
+    list(prep$ts_wo_event), list(prep$event),
+    n = 20, periods = c(1951, 1980, 1993, 2022), metric = m
+  )
+  dplyr::mutate(a$analogs_subperiods, metric = m)
+})
+
+dplyr::bind_rows(metrics_list) |>
+  ggplot(aes(x = metric, y = dist, fill = period)) +
+  geom_boxplot(alpha = 0.75, outlier.size = 0.8) +
+  scale_fill_manual(values = c("1951-1980" = "#4575b4", "1993-2022" = "#d73027")) +
+  labs(x = "Metric", y = "Distance score", fill = "Period",
+       title = "Analog quality by metric",
+       subtitle = "Distances are not comparable across metrics (different scales)") +
+  theme_bw()
+```
+
+> **Tip**: RMSD is the default and usually the best choice for Z500 fields.
+> Pearson is useful when only the pattern shape matters (e.g. blocking index).
+
+## Effect of n (number of analogs)
+
+More analogs = wider bootstrap distribution = more uncertainty, but also less
+bias from poor analogs. The sweet spot is usually n = 15–30.
+
+```{r n-effect, fig.cap="Effect of n on the bootstrap variance. Shaded band = ±1 sd across bootstrap replicates."}
+ts_data <- as_ts(TX)
+analogs_base <- analogs_searcher(
+  list(prep$ts_wo_event), list(prep$event),
+  n = 40, periods = c(1951, 1980, 1993, 2022)
+)
+
+n_values <- c(5, 10, 20, 40)
+results <- lapply(n_values, function(n_top) {
+  # restrict to top-n per period/event day
+  sub <- analogs_base$analogs_subperiods |>
+    dplyr::group_by(period, time_obj) |>
+    dplyr::slice_min(dist, n = n_top) |>
+    dplyr::ungroup()
+  bs <- suppressMessages(
+    bs_analogs(ts_data, sub, n = 200, anom = TRUE, ref_period = c(1950, 2022))
+  )
+  bs$summary_bs |> dplyr::mutate(n_analogs = n_top)
+})
+
+dplyr::bind_rows(results) |>
+  ggplot(aes(x = time_obj, y = var_mean,
+             colour = period, group = interaction(period, n_analogs),
+             linetype = factor(n_analogs))) +
+  geom_line(linewidth = 0.8) +
+  scale_colour_manual(values = c("1951-1980" = "#4575b4", "1993-2022" = "#d73027")) +
+  scale_linetype_manual(values = c("5"="dotted","10"="dashed","20"="solid","40"="solid"),
+                        name = "n analogs") +
+  labs(x = NULL, y = "Mean anomaly (°C)", colour = "Period",
+       title = "Effect of n on bootstrap mean") +
+  theme_bw()
+```
+
+## Analog quality diagnostic
+
+A good attribution requires similar analog quality in both periods — if RMSD is
+much higher in one period, the analog pool is unbalanced.
+
+```{r quality, fig.cap="Mean RMSD per event day. Both periods should be comparable."}
+analogs_base$analogs_subperiods |>
+  dplyr::group_by(period, time_obj) |>
+  dplyr::summarise(mean_rmsd = mean(dist), .groups = "drop") |>
+  ggplot(aes(x = time_obj, y = mean_rmsd, colour = period, group = period)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.5) +
+  scale_colour_manual(values = c("1951-1980" = "#4575b4", "1993-2022" = "#d73027")) +
+  labs(x = "Event day", y = "Mean RMSD", colour = "Period",
+       title = "Analog quality check — RMSD should be comparable across periods") +
+  theme_bw()
+```
+
+If one period systematically shows higher RMSD, try:
+
+- Increasing `n` to allow worse analogs in the sparse period
+- Widening `time_window` to expand the seasonal pool
+- Checking that the data covers the full period requested
 
 - Never uses retina figures
 - Has a smaller default figure size
