@@ -41,3 +41,4 @@ docs/
 docs
 _pkgdown.yml
 pkgdown
+.github/agents/climattR-agent.agent.md

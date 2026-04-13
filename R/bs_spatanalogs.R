@@ -24,9 +24,14 @@
 #' @importFrom pbapply pblapply
 #' @examples
 #' \dontrun{
-#' dat_path <- system.file("extdata", "example.nc", package = "yourPackageName")
-#' analogs_data <- data.frame(time = as.Date('2021-01-01') + 0:10, period = rep('2021', 11))
-#' result <- bs_spatanalogs(dat_path, analogs_data, n = 100, event_fun = "mean", anom = TRUE, ref_period = c(1980, 2000))}
+#' Z500 <- terra::rast(system.file("extdata", "z500_0509_1950_2023_eu.nc", package = "climattR"))
+#' TX   <- terra::rast(system.file("extdata", "tx_0608_1950_2023.nc",        package = "climattR"))
+#' prep <- prepare_data(Z500, event_dates = as.Date("2023-07-12"), time_window = 31)
+#' analogs <- analogs_searcher(list(prep$ts_wo_event), list(prep$event),
+#'                             n = 20, periods = c(1951, 1980, 1993, 2022))
+#' result <- bs_spatanalogs(TX, analogs$analogs_subperiods, n = 100,
+#'                          anom = TRUE, ref_period = c(1950, 2022))
+#' }
 #' @export
 
 bs_spatanalogs <- function(x, analogs, n = 1000, 
@@ -71,7 +76,7 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
     dat <- app(dat, detrend_pracma, k = k)
   }
   
-  if(isTRUE(anom) & length(ref_period == 2)){
+  if(isTRUE(anom) & length(ref_period) == 2){
     
     ref_mean <- dat %>% 
       subset(which(year(time_dat) >= ref_period[1] & year(time_dat) <= ref_period[2])) %>%

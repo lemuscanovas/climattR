@@ -27,9 +27,10 @@
 #' @importFrom stats cor dist formula lm sd step var
 #' @importFrom stringr str_replace str_pad
 #' @examples
-#' \dontrun{nc_file <- system.file("extdata", "example.nc", package = "yourPackageName")
-#' event_dates <- as.Date(c("2022-06-01"))
-#' result <- prepare_data(nc_file, event_dates = event_dates, time_window = 30)}
+#' \dontrun{
+#' Z500 <- terra::rast(system.file("extdata", "z500_0509_1950_2023_eu.nc", package = "climattR"))
+#' event_dates <- as.Date(c("2023-07-12"))
+#' result <- prepare_data(Z500, event_dates = event_dates, time_window = 31)}
 #' @export
 
 prepare_data <- function(x, level = NULL, event_dates,

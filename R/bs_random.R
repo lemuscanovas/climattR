@@ -4,24 +4,20 @@
 #' It offers options to detrend and normalize the data, convert hourly data to daily averages,
 #' apply custom transformations, and compute statistical significance of the bootstrap results.
 #'
-#' @param x A data frame or tibble containing the time series data.
-#' @param analogs A data frame of subperiods with associated analog information.
+#' @param x A data frame or tibble containing the time series data (columns: \code{time}, variable).
+#' @param periods A numeric vector of year pairs defining the subperiods, e.g. \code{c(1951, 1980, 1993, 2022)}.
+#' @param n Integer; the number of bootstrap samples to generate for each period.
+#' @param event_fun Character; the function used to aggregate data during events (default \code{"mean"}).
+#' @param anom Logical; if TRUE, anomalies are calculated relative to \code{ref_period}.
+#' @param ref_period Numeric vector of length 2; start and end years for the reference period, required if \code{anom = TRUE}.
+#' @param replace Logical; if TRUE, sampling is done with replacement.
 #' @param detrend Logical; if TRUE, the data is detrended using a polynomial of degree \code{k}.
 #' @param k Integer; degree of the polynomial used for detrending (default is 2).
-#' @param n Integer; the number of bootstrap samples to generate for each period.
-#' @param replace Logical; if TRUE, sampling is done with replacement.
-#' @param anom Logical; if TRUE, anomalies are calculated relative to a reference period.
-#' @param ref_period Numeric vector; specifies the start and end years for the reference period if anomalies are to be calculated.
-#' @param hour2day_fun String; specifies the function name to aggregate hourly data to daily (default is "mean").
-#' @param event_fun Function; the function used to aggregate data during events.
-#' @param conversion_fun Function; the function used to transform data before analysis.
-#' @param cl Integer; the number of cores to use for parallel processing.
 #'
-#' @return A list containing three elements:
+#' @return A list containing two elements:
 #' \itemize{
-#'   \item \code{observed}: The observed data filtered by the times of the analogs.
-#'   \item \code{bootstrap_simulation}: A data frame of the bootstrap simulation results.
-#'   \item \code{summary_bs}: A data frame summarizing the bootstrap results.
+#'   \item \code{bootstrap_simulation}: A data frame of all bootstrap replicate values per period.
+#'   \item \code{summary_bs}: A data frame with mean, median, and SD of the variable per period.
 #' }
 #'
 #' @importFrom dplyr filter summarise mutate inner_join group_by ungroup select rename
@@ -32,8 +28,8 @@
 #' 
 #' @export
 
-bs_random <- function(x, periods = c(1951,1980,1991,2020), n = 1000, event_fun = "mean", anom = F, 
-                      ref_period = NULL, replace = T, detrend = F,k=2){
+bs_random <- function(x, periods = c(1951,1980,1991,2020), n = 1000, event_fun = "mean", anom = FALSE, 
+                      ref_period = NULL, replace = TRUE, detrend = FALSE, k = 2){
   
   event_FUN <- match.fun(FUN = event_fun)
 
@@ -66,10 +62,10 @@ bs_random <- function(x, periods = c(1951,1980,1991,2020), n = 1000, event_fun =
     dat <- dat %>% na.omit() %>% mutate(var = detrend_pracma(var, k = k))
   }
   
-  if(isTRUE(anom) & length(ref_period == 2)){
+  if(isTRUE(anom) & length(ref_period) == 2){
     ref_mean <- dat %>% 
       filter(year(time) >= ref_period[1], year(time) <= ref_period[2]) %>%
-      summarise(ref_mean = mean(var, na.rm = T))
+      summarise(ref_mean = mean(var, na.rm = TRUE))
     
     dat$var <- dat$var - ref_mean$ref_mean
     

@@ -20,14 +20,12 @@
 #' @importFrom stats setNames
 #' @examples
 #' \dontrun{
-#' # Assuming 'data.nc' contains a SpatRaster with time variable
-#' raster_path <- system.file("extdata", "data.nc", package = "yourPackageName")
-#' raster_data <- rast(raster_path)
-#' time_series_data <- as_ts(raster_data, detrend = TRUE, k = 2, hour2day_fun = "mean")}
+#' TX <- terra::rast(system.file("extdata", "tx_0608_1950_2023.nc", package = "climattR"))
+#' ts <- as_ts(TX, detrend = FALSE, hour2day_fun = "mean")}
 #' @export
 
 as_ts <- function(x, 
-                  detrend = F, 
+                  detrend = FALSE, 
                   k = 2, 
                   hour2day_fun = "mean", 
                   domain = NULL, 
@@ -46,13 +44,8 @@ as_ts <- function(x,
   }
   
   # If hourly, converts to daily
-  if(length((time(dat))) != length(unique(time(dat)))){
-    if(hour2day_fun != "mean"){
-      hour2day_FUN <- match.fun(FUN = hour2day_fun)
-      dat <- dat %>%
-        tapp(dat, as.factor(time_dat),hour2day_FUN, na.rm = T)
-    }
-    dat <- tapp(dat, as.factor(time_dat),"mean", na.rm = T)
+  if(length(time(dat)) != length(unique(time(dat)))){
+    dat <- tapp(dat, as.factor(time_dat), hour2day_fun, na.rm = TRUE)
   }    
   
   
@@ -68,13 +61,15 @@ as_ts <- function(x,
   
   
   if(!is.null(domain)){
-    domain <- ext(domain) %>% as.polygons()
-  o <- terra::extract(dat,domain, fun = mean, na.rm = T ) %>%
-    t() %>% as.vector()
-  }
-  if(!is.null(sf_obj)){
-    o <- terra::extract(dat,vect(sf_obj), fun = NULL, na.rm = T,method = "simple") %>%
-    t() %>% as.vector()
+    domain_poly <- ext(domain) %>% as.polygons()
+    o <- terra::extract(dat, domain_poly, fun = mean, na.rm = TRUE) %>%
+      t() %>% as.vector()
+  } else if(!is.null(sf_obj)){
+    o <- terra::extract(dat, vect(sf_obj), fun = NULL, na.rm = TRUE, method = "simple") %>%
+      t() %>% as.vector()
+  } else {
+    # No spatial filter: spatial mean over all cells
+    o <- c(NA_real_, terra::global(dat, "mean", na.rm = TRUE)[[1]])
   }
   
   dates <- as_date(time(dat))

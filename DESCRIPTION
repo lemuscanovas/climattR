@@ -30,6 +30,7 @@ Imports:
     tibble,
     pbapply,
     pracma,
+    ggplot2,
     methods
 Suggests:
     ncdf4,

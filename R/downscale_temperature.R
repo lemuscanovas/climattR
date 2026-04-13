@@ -89,7 +89,8 @@ if (inherits(x, "SpatRaster")) {
     
     xx <- formula(step_regression)
     
-    # v_mod_OK <- automap::autofitVariogram(xx, as(day_sf_, "Spatial"))$var_model
+    v <- gstat::variogram(formula(step_regression), data = sf::as_Spatial(day_sf_))
+    v_mod_OK <- gstat::fit.variogram(v, gstat::vgm("Sph"))
     
     mod <- krige(
       formula=formula(step_regression),

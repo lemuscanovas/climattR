@@ -35,10 +35,10 @@ bs_analogs <- function(x,
                        analogs, 
                        n = 1000, 
                        event_fun = "mean", 
-                       anom = F, 
+                       anom = FALSE, 
                        ref_period = NULL,
-                       replace = T, 
-                       detrend = F, 
+                       replace = TRUE, 
+                       detrend = FALSE, 
                        k = 2) {
   
   event_FUN <- match.fun(FUN = event_fun)
@@ -73,10 +73,10 @@ bs_analogs <- function(x,
     dat <- dat %>% na.omit() %>% mutate(var = detrend_pracma(var, k = k))
   }
   
-  if(isTRUE(anom) & length(ref_period == 2)){
+  if(isTRUE(anom) & length(ref_period) == 2){
   ref_mean <- dat %>% 
     filter(year(time) >= ref_period[1], year(time) <= ref_period[2]) %>%
-    summarise(ref_mean = mean(var, na.rm = T))
+    summarise(ref_mean = mean(var, na.rm = TRUE))
   
     }else if(isFALSE(anom)){
       
@@ -85,7 +85,9 @@ bs_analogs <- function(x,
     
   }else{
     stop("Please, the reference period is as follows: ref_period = c(1981,2010)")
-      }
+  }
+  
+  ref_val <- if(isTRUE(anom)) pull(ref_mean, 1) else 0
 
   # Computing sd and mean for a counterfactual world -------------------------------
   
@@ -127,9 +129,9 @@ bs_analogs <- function(x,
     # group_by(time_obj) %>%
     # mutate(dist = .range01(dist,na.rm = T)) %>%
     group_by(time_obj,sim,period) %>%
-    summarise(var = ifelse(exists("ref_mean"), var - pull(ref_mean,1),var),
+    summarise(var = var - ref_val,
            dist = mean(dist),
-           var = var,.groups = "drop") %>%
+           .groups = "drop") %>%
     ungroup()
   
   # mean and sd of RMSD or Euclid dist, 
@@ -167,13 +169,15 @@ bs_analogs <- function(x,
   dat_days_event <- dat %>% 
     filter(time %in% unique(analogs$time_obj)) %>%
     group_by(time) %>%
-    summarise(var = ifelse(exists("ref_mean"), var - pull(ref_mean,1),var),.groups = "drop") %>%
+    summarise(var = var - ref_val, .groups = "drop") %>%
     ungroup() %>%
     rename(time_obj = time) 
   
 
-  return(list(observed = dat_days_event,
-              bootstrap_simulation = join_bootstraps,
-              summary_bs = summary1_bootstrap_daily))
-         
+  return(structure(
+    list(observed             = dat_days_event,
+         bootstrap_simulation = join_bootstraps,
+         summary_bs           = summary1_bootstrap_daily),
+    class = "climattr_bs"
+  ))
 }

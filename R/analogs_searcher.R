@@ -19,9 +19,11 @@
 #' @importFrom tidyr pivot_longer
 #' @importFrom stats setNames
 #' @examples
-#' \dontrun{ts_wo_event_example <- list(rast(system.file("extdata", "example1.nc", package = "yourPackageName")))
-#' event_example <- list(rast(system.file("extdata", "example2.nc", package = "yourPackageName")))
-#' result <- analogs_searcher(ts_wo_event_example, event_example, n = 5, periods = c(1951,1980,1991,2020), metric = "rmsd")
+#' \dontrun{
+#' Z500 <- terra::rast(system.file("extdata", "z500_0509_1950_2023_eu.nc", package = "climattR"))
+#' prep <- prepare_data(Z500, event_dates = as.Date("2023-07-12"), time_window = 31)
+#' result <- analogs_searcher(list(prep$ts_wo_event), list(prep$event),
+#'                            n = 20, periods = c(1951, 1980, 1993, 2022), metric = "rmsd")
 #' }
 #' @export
 
@@ -129,7 +131,7 @@ analogs_searcher <- function(ts_wo_event, event, n = 20,
       select(time_obj, time, dist)
   } 
   
-  if(!is.null(split_year)){
+  if(!is.null(periods)){
   .analog_extraction_subperiods <- function(s){
     # Dates anàlogues a z500
     event_df_ii <- filter(event_df, time == time_event[s]) %>%
