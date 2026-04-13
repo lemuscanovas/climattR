@@ -3,6 +3,9 @@
 #' This function processes a spatial raster dataset, optionally detrending and aggregating by time,
 #' to convert it into a time series format. It supports conversion from hourly to daily data and can
 #' apply a domain or spatial filter using an `sf` object.
+#' If the NetCDF unit attribute contains a scale factor (e.g. \code{"Celsius*10"}),
+#' the function divides by that factor automatically so the output is always in the
+#' base unit (e.g. °C).
 #'
 #' @param x A file path to a NetCDF file or a `SpatRaster` object.
 #' @param detrend Logical; should the data be detrended? Defaults to FALSE.
@@ -11,9 +14,10 @@
 #' @param domain Optional; a spatial object or extent to restrict the analysis within a specific domain.
 #' @param sf_obj Optional; an `sf` object used to extract data points based on spatial features.
 #'
-#' @return A `tibble` containing time series data with two columns: time and the variable of interest.
+#' @return A `tibble` containing time series data with two columns: time and the variable of interest,
+#'   scaled to the base unit (e.g. °C when the raw unit is \code{"Celsius*10"}).
 #'
-#' @importFrom terra rast time app extract
+#' @importFrom terra rast time app extract varnames units
 #' @importFrom lubridate as_date
 #' @importFrom tibble tibble 
 #' @importFrom pracma polyfit polyval
@@ -35,6 +39,19 @@ as_ts <- function(x,
     dat <- x
   }else{
     dat <- rast(x)  
+  }
+
+  # Detect and apply scale factor from unit attribute (e.g. "Celsius*10" → /10)
+  unit_str <- tryCatch(terra::units(dat)[1], error = function(e) "")
+  scale_divisor <- 1
+  if (grepl("\\*", unit_str)) {
+    factor_str <- trimws(sub(".*\\*", "", unit_str))
+    parsed     <- suppressWarnings(as.numeric(factor_str))
+    if (!is.na(parsed) && parsed != 0) {
+      scale_divisor <- parsed
+      message("Unit '", unit_str, "' detected: values divided by ", parsed,
+              " to convert to base unit.")
+    }
   }
   
   time_dat <- as_date(time(dat))
@@ -81,7 +98,8 @@ as_ts <- function(x,
   ts <- tibble(dates, o[-1]) %>% 
     setNames(c("time", "var")) %>%
     group_by(time) %>%
-    summarise(var = mean(var, na.rm = T),.groups = "drop") %>%
+    summarise(var = mean(var, na.rm = TRUE), .groups = "drop") %>%
+    mutate(var = var / scale_divisor) %>%
     setNames(c("time", varnames(dat)))
   
   

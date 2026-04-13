@@ -84,24 +84,31 @@ attribution_metrics <- function(x,
   p_cf <- exceed_fun(cf_vals, threshold)
   p_f  <- exceed_fun(f_vals,  threshold)
 
-  PR  <- if (p_cf == 0) Inf else p_f / p_cf
-  FAR <- if (is.infinite(PR)) 1 else 1 - 1 / PR
+  # Continuity correction: if P_cf = 0, use 1/(2*n) to obtain a finite PR
+  # This is standard in attribution studies when the event is not observed
+  # in the counterfactual sample. PR is then a lower bound.
+  n_sims  <- length(cf_vals)
+  p_cf_cc <- if (p_cf == 0) 1 / (2 * n_sims) else p_cf
+  p_f_cc  <- if (p_f  == 0) 1 / (2 * n_sims) else p_f
+
+  PR  <- p_f_cc / p_cf_cc
+  FAR <- 1 - 1 / PR
 
   # CI via resampling the bootstrap distributions
   alpha   <- 1 - conf_level
-  n_sims  <- length(cf_vals)
 
   pr_boot <- replicate(n_boot, {
     cf_s <- sample(cf_vals, n_sims, replace = TRUE)
     f_s  <- sample(f_vals,  n_sims, replace = TRUE)
     p_c  <- exceed_fun(cf_s, threshold)
     p_fs <- exceed_fun(f_s,  threshold)
-    if (p_c == 0) Inf else p_fs / p_c
+    p_c_cc  <- if (p_c  == 0) 1 / (2 * n_sims) else p_c
+    p_fs_cc <- if (p_fs == 0) 1 / (2 * n_sims) else p_fs
+    p_fs_cc / p_c_cc
   })
 
-  pr_finite <- pr_boot[is.finite(pr_boot)]
-  pr_ci  <- quantile(pr_finite, c(alpha / 2, 1 - alpha / 2), na.rm = TRUE)
-  far_ci <- 1 - 1 / pr_ci  # note: FAR is monotone in PR, so CI inverts
+  pr_ci  <- quantile(pr_boot, c(alpha / 2, 1 - alpha / 2), na.rm = TRUE)
+  far_ci <- 1 - 1 / pr_ci  # FAR is monotone in PR, so CI inverts
 
   tibble::tibble(
     counterfactual_period = cf_period,

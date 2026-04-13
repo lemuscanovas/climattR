@@ -1,0 +1,522 @@
+---
+title: "0. climattR — Package overview & full workflow"
+author: "Marc Lemus-Canovas"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 5
+vignette: >
+  %\VignetteIndexEntry{0. climattR — Package overview & full workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  message   = FALSE,
+  warning   = FALSE,
+  fig.align = "center"
+)
+```
+
+## What is climattR?
+
+**climattR** is an R package for **rapid attribution of extreme weather events to
+climate change** using the *flow analogues* methodology. Given a target event (e.g.
+a heatwave or storm), the package:
+
+1. Identifies historical days with the same large-scale atmospheric pattern (Z500)
+2. Reconstructs the surface conditions (temperature, precipitation) those days produced
+3. Compares conditions across two climate sub-periods (counterfactual past vs. factual present)
+4. Quantifies the attribution signal: Probability Ratio (PR), Fraction Attributable Risk (FAR), $\Delta T$
+
+The approach is rapid (minutes on a laptop), fully reproducible with open reanalysis
+data (ERA5), and methodologically consistent with the World Weather Attribution
+(WWA) framework.
+
+---
+
+## Workflow diagram
+
+```{r workflow-diagram, echo=FALSE, fig.height=7, fig.width=9}
+library(ggplot2)
+
+# --- node definitions ---
+nodes <- data.frame(
+  id    = 1:7,
+  label = c(
+    "1. prepare_data()\nNetCDF → SpatRaster\ntemporal window + detrend",
+    "2. analogs_searcher()\nRMSD / Euclidean / Pearson\ntop-N analog days",
+    "3a. bs_spatanalogs()\nBootstrap spatial\nreconstruction (SpatRaster)",
+    "3b. as_ts() +\nbs_analogs()\nBootstrap tabular\n(climattr_bs)",
+    "4. attribution_metrics()\nPR · FAR · ΔT\n95% CI",
+    "5. autoplot()\nDensity: factual vs.\ncounterfactual",
+    "6. downscale_temperature()\nKriging + DEM\nhigh-res grid"
+  ),
+  x     = c(4, 4, 2, 6, 6, 4, 2),
+  y     = c(9, 7, 5, 5, 3, 3, 3),
+  type  = c("input", "core", "core", "core", "output", "output", "optional")
+)
+
+# colour palette
+pal <- c(input = "#4575b4", core = "#1a9850", output = "#d73027", optional = "#f4a582")
+
+# --- arrow definitions ---
+arrows <- data.frame(
+  x    = c(4, 4, 4, 6, 6, 2),
+  y    = c(8.55, 6.55, 6.55, 4.55, 4.55, 4.55),
+  xend = c(4, 2, 6, 6, 4, 2),
+  yend = c(7.45, 5.45, 5.45, 3.45, 3.45, 3.45)
+)
+
+# --- data inputs shown aside ---
+data_labels <- data.frame(
+  label = c("Z500 NetCDF\n(ERA5)", "Surface var. NetCDF\n(TX / precip)"),
+  x = c(1.2, 7),
+  y = c(9, 9)
+)
+
+ggplot() +
+  # arrows
+  geom_segment(data = arrows,
+               aes(x = x, y = y, xend = xend, yend = yend),
+               arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+               linewidth = 0.7, colour = "grey40") +
+  # data input arrows
+  geom_segment(aes(x = 1.85, y = 9, xend = 2.8, yend = 9),
+               arrow = arrow(length = unit(0.2, "cm"), type = "closed"),
+               colour = "#4575b4", linewidth = 0.6) +
+  geom_segment(aes(x = 6.55, y = 9, xend = 5.8, yend = 7.1),
+               arrow = arrow(length = unit(0.2, "cm"), type = "closed"),
+               colour = "#4575b4", linewidth = 0.6) +
+  # node boxes
+  geom_tile(data = nodes,
+            aes(x = x, y = y, fill = type),
+            width = 2.4, height = 1.4, colour = "white", linewidth = 1.2,
+            alpha = 0.85) +
+  # node labels
+  geom_text(data = nodes,
+            aes(x = x, y = y, label = label),
+            size = 3, lineheight = 1.15, fontface = "bold", colour = "white") +
+  # data labels
+  geom_label(data = data_labels,
+             aes(x = x, y = y, label = label),
+             fill = "#e8f4fd", colour = "#2c5f8a", size = 2.8,
+             label.padding = unit(0.35, "lines")) +
+  # period annotation
+  annotate("text", x = 4, y = 6.05, size = 2.8, colour = "grey40",
+           label = "periods = c(1951,1980, 1993,2022)") +
+  scale_fill_manual(
+    values = pal,
+    labels = c(input = "Data preparation", core = "Core methodology",
+               output = "Attribution output", optional = "Optional (downscaling)"),
+    name = NULL) +
+  scale_x_continuous(limits = c(0.1, 8.2)) +
+  scale_y_continuous(limits = c(2.1, 10.2)) +
+  theme_void() +
+  theme(legend.position  = "bottom",
+        legend.text      = element_text(size = 9),
+        plot.margin      = margin(10, 10, 10, 10))
+```
+
+---
+
+## Setup
+
+```{r load-pkg}
+# Load functions directly from source (development mode).
+# Replace with library(climattR) once the package is installed.
+invisible(lapply(
+  list.files(rprojroot::find_package_root_file("R"), full.names = TRUE),
+  source
+))
+library(terra)
+library(dplyr)
+library(ggplot2)
+```
+
+---
+
+## Step 1 — Prepare data {#step1}
+
+`prepare_data()` processes a NetCDF raster (Z500), creates a calendar-based
+temporal window around the event, and optionally detrends. It returns two
+`SpatRaster` objects: the historical analogue pool and the event itself.
+
+```{r prepare}
+Z500 <- terra::rast(
+  if (requireNamespace("climattR", quietly = TRUE))
+    system.file("extdata", "z500_0509_1950_2023_eu.nc", package = "climattR")
+  else
+    rprojroot::find_package_root_file("inst", "extdata", "z500_0509_1950_2023_eu.nc")
+)
+
+event_dates <- seq(as.Date("2023-07-12"), as.Date("2023-07-18"), by = "day")
+
+prep <- prepare_data(
+  x           = Z500,
+  event_dates = event_dates,
+  time_window = 31,       # ±31 calendar days define the analog pool
+  detrend     = FALSE
+)
+
+cat("Historical pool layers :", terra::nlyr(prep$ts_wo_event), "\n")
+cat("Event layers (days)    :", terra::nlyr(prep$event),       "\n")
+```
+
+**Key parameters**
+
+| Argument | Default | Purpose |
+|----------|---------|---------|
+| `time_window` | 31 | Days before/after event for the analog pool |
+| `analog_months` | NULL | Month-based pool instead of time window |
+| `detrend` | FALSE | Remove long-term polynomial trend |
+| `k` | 2 | Polynomial degree for detrending |
+
+---
+
+## Step 2 — Find analogues {#step2}
+
+`analogs_searcher()` computes a distance metric (RMSD by default) between every
+day in the pool and each event day, then returns the top-$N$ matches per
+sub-period.
+
+```{r analogs}
+analogs <- analogs_searcher(
+  ts_wo_event = list(prep$ts_wo_event),
+  event       = list(prep$event),
+  n           = 20,
+  periods     = c(1951, 1980, 1993, 2022),   # two climate sub-periods
+  metric      = "rmsd"
+)
+
+cat("Full-period analogues  :", nrow(analogs$analogs_full_period), "\n")
+cat("Sub-period analogues   :", nrow(analogs$analogs_subperiods),  "\n")
+```
+
+**Quality check** — RMSD should be comparable across periods:
+
+```{r analog-quality, fig.height=3.5}
+analogs$analogs_subperiods |>
+  group_by(period, time_obj) |>
+  summarise(mean_dist = mean(dist), .groups = "drop") |>
+  ggplot(aes(x = time_obj, y = mean_dist, colour = period, group = period)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  scale_colour_manual(values = c("1951-1980" = "#4575b4", "1993-2022" = "#d73027")) +
+  labs(x = NULL, y = "Mean RMSD", colour = "Period",
+       title = "Analog quality by event day and climate period") +
+  theme_bw()
+```
+
+---
+
+## Step 3a — Spatial bootstrap reconstruction {#step3a}
+
+`bs_spatanalogs()` generates $n$ bootstrap replicates of the spatially
+reconstructed surface field for each sub-period, expressed as anomalies with
+respect to a reference climatology.
+
+```{r bs-spat, fig.cap="Mean temperature anomaly (°C) for each climate sub-period. Attribution signal = factual − counterfactual.", fig.height=4, fig.width=10}
+TX <- terra::rast(
+  if (requireNamespace("climattR", quietly = TRUE))
+    system.file("extdata", "tx_0608_1950_2023.nc", package = "climattR")
+  else
+    rprojroot::find_package_root_file("inst", "extdata", "tx_0608_1950_2023.nc")
+)
+
+bs_sp <- suppressMessages(bs_spatanalogs(
+  x          = TX,
+  analogs    = analogs$analogs_subperiods,
+  n          = 50,          # use n=1000 for final results
+  event_fun  = "mean",
+  anom       = TRUE,
+  ref_period = c(1950, 2022)
+))
+
+cf_mean  <- mean(bs_sp[["1951-1980"]])
+fac_mean <- mean(bs_sp[["1993-2022"]])
+attr_signal <- fac_mean - cf_mean
+
+# Convert to ggplot2-friendly data frames
+to_df <- function(r, label) {
+  as.data.frame(r, xy = TRUE) |>
+    dplyr::rename(value = 3) |>
+    dplyr::mutate(panel = label)
+}
+
+plot_df <- dplyr::bind_rows(
+  to_df(cf_mean,    "Counterfactual (1951-1980)"),
+  to_df(fac_mean,   "Factual (1993-2022)"),
+  to_df(attr_signal,"Attribution signal (factual \u2212 counterfactual)")
+)
+
+# shared colour limits: clip to 95th percentile to avoid outlier stretching
+lim <- quantile(abs(plot_df$value), 0.95, na.rm = TRUE)
+
+ggplot(plot_df, aes(x = x, y = y, fill = value)) +
+  geom_raster() +
+  facet_wrap(~panel, nrow = 1) +
+  scale_fill_gradient2(
+    low      = "#4575b4",
+    mid      = "white",
+    high     = "#d73027",
+    midpoint = 0,
+    limits   = c(-lim, lim),
+    oob      = scales::squish,
+    name     = "\u00b0C"
+  ) +
+  coord_equal() +
+  labs(x = NULL, y = NULL,
+       title = "Bootstrap spatial reconstruction — 2023-07-12/18 heatwave") +
+  theme_bw(base_size = 10) +
+  theme(strip.text       = element_text(face = "bold"),
+        axis.text        = element_blank(),
+        axis.ticks       = element_blank(),
+        panel.grid       = element_blank(),
+        legend.position  = "right")
+```
+
+---
+
+## Step 3b — Tabular bootstrap {#step3b}
+
+For regional or station-scale analysis, `as_ts()` extracts a 1-D time series
+from the raster and `bs_analogs()` runs the same bootstrap on the table.
+
+```{r bs-tab}
+TX <- terra::rast(
+  if (requireNamespace("climattR", quietly = TRUE))
+    system.file("extdata", "tx_0608_1950_2023.nc", package = "climattR")
+  else
+    rprojroot::find_package_root_file("inst", "extdata", "tx_0608_1950_2023.nc")
+)
+
+# Spatial mean over the full domain — supply 'domain' for a specific region
+ts_data <- as_ts(TX)
+
+bs_tab <- bs_analogs(
+  x          = ts_data,
+  analogs    = analogs$analogs_subperiods,
+  n          = 500,
+  anom       = TRUE,
+  ref_period = c(1950, 2022)
+)
+
+# The result is a 'climattr_bs' S3 object
+print(bs_tab)
+```
+
+---
+
+## Step 4 — Attribution metrics {#step4}
+
+`attribution_metrics()` computes the standard WWA metrics from the bootstrap
+distributions:
+
+$$
+\text{PR} = \frac{P(\text{event} \mid \text{factual})}{P(\text{event} \mid \text{counterfactual})}
+\qquad
+\text{FAR} = 1 - \frac{1}{\text{PR}}
+$$
+
+```{r metrics}
+# Use the observed event magnitude as threshold
+obs_mean <- mean(bs_tab$observed$var, na.rm = TRUE)
+cat("Observed event mean anomaly:", round(obs_mean, 1), "°C\n")
+
+metrics <- attribution_metrics(
+  x          = bs_tab,
+  threshold  = obs_mean,
+  tail       = "upper",   # hot event: P(X >= threshold)
+  conf_level = 0.95,
+  n_boot     = 1000
+)
+
+knitr::kable(metrics, digits = 3,
+             caption = "Attribution metrics for the 2023-07-12/18 event")
+```
+
+**Interpretation guide**
+
+| Metric | Value | Meaning |
+|--------|-------|---------|
+| PR > 1 | e.g. 5 | Event 5× more likely in current climate |
+| FAR → 1 | e.g. 0.8 | 80% of probability attributable to CC |
+| delta_T > 0 | e.g. +2°C | Distribution shifted +2°C by CC |
+
+---
+
+## Step 5 — Visualisation {#step5}
+
+`autoplot()` produces a publication-ready density plot comparing the two
+bootstrap distributions, with the observed value and the user-defined threshold.
+
+```{r autoplot, fig.cap="Bootstrap distributions for the 2023 heatwave. Blue = counterfactual (1951–1980), red = factual (1993–2022). Dashed line = observed mean anomaly."}
+autoplot(bs_tab, threshold = obs_mean,
+         xlab  = "Temperature anomaly (°C)",
+         title = "2023-07-12/18 heatwave — factual vs. counterfactual")
+```
+
+---
+
+## Step 6 — Dynamic / thermodynamic decomposition {#step6}
+
+`decompose_signal()` splits the total attribution signal into:
+
+- **Dynamic**: driven by changes in atmospheric *circulation* between periods  
+- **Thermodynamic**: driven by background *warming* at fixed circulation  
+
+The method requires two `bs_analogs()` runs on the same analogs — one with raw
+temperatures (`detrend = FALSE`) and one with detrended temperatures
+(`detrend = TRUE`, which removes the long-term trend and isolates the
+circulation signal).
+
+$$
+\Delta X_\text{total} = \underbrace{\Delta X_\text{dyn}}_{\text{circulation}}
+                      + \underbrace{\Delta X_\text{thermo}}_{\text{warming}}
+$$
+
+```{r decompose, fig.cap="Decomposition of the 2023 heatwave signal into dynamic (circulation) and thermodynamic (warming) components. Error bars show 95% CI."}
+bs_det <- suppressMessages(bs_analogs(
+  ts_data, analogs$analogs_subperiods,
+  n          = 500,
+  anom       = TRUE,
+  ref_period = c(1950, 2022),
+  detrend    = TRUE   # <-- key difference
+))
+
+dcmp <- decompose_signal(bs_tab, bs_det)
+knitr::kable(dcmp, digits = 3,
+             caption = "Dynamic / thermodynamic decomposition (°C)")
+
+plot_decomposition(dcmp,
+                   title = "2023-07-12/18 heatwave — signal decomposition")
+```
+
+---
+
+## Step 7 — EVT-based attribution {#step7}
+
+`evt_metrics()` fits a parametric extreme value distribution (GEV or GPD) to
+the bootstrap samples and derives return periods and PR/FAR from the fitted
+model. This gives smoother probability estimates in the tails compared to
+empirical counting.
+
+```{r evt, fig.cap="Comparison of empirical (counting) vs. GEV-based PR and return periods."}
+library(extRemes)
+
+m_gev <- evt_metrics(bs_tab, threshold = obs_mean, type = "GEV", n_boot = 200)
+m_gp  <- evt_metrics(bs_tab, threshold = obs_mean, type = "GP",  n_boot = 200)
+
+knitr::kable(
+  dplyr::bind_rows(
+    dplyr::mutate(m_gev, method = "GEV"),
+    dplyr::mutate(m_gp,  method = "GPD")
+  ) |> dplyr::select(method, dist_type, return_period_cf, return_period_f,
+                     PR, PR_low, PR_high, FAR),
+  digits = 1,
+  caption = "EVT-based attribution metrics. RP = return period (years)."
+)
+```
+
+---
+
+## Step 8 — Return level curves {#step8}
+
+`return_level_curves()` fits a GEV to each climate sub-period separately and
+produces the full return level-return period relationship for both worlds. The
+vertical gap between the two curves at any given return period is the
+**attribution signal** at that extremity — visually showing how the distribution
+tail has shifted.
+
+```{r return-levels, fig.cap="Return level curves for the counterfactual (1951–1980, blue) and factual (1993–2022, red) periods. Shaded bands are 95% CI. Dashed line marks the observed event anomaly.", fig.height=5, fig.width=7}
+rl <- return_level_curves(bs_tab, n_boot = 300)
+
+plot_return_levels(
+  rl,
+  obs_val = obs_mean,
+  title   = "Return levels — 2023 heatwave factual vs. counterfactual"
+)
+```
+
+The dashed line intersects the two curves at their respective **return periods
+for the observed event intensity** — the shift between the two intersections is
+the change in rarity attributable to climate change.
+
+---
+
+## Step 9 — Downscale (optional) {#step9}
+
+`downscale_temperature()` refines the coarse reconstruction to high resolution
+using kriging with elevation as covariate. Requires the `gstat` and `elevatr`
+packages.
+
+```{r downscale, eval=FALSE}
+tx_hires <- downscale_temperature(
+  x      = mean(bs_sp[["1993-2022"]]),
+  analogs = analogs$analogs_subperiods,
+  dem    = NULL,    # auto-downloaded via elevatr
+  disagg = 4,       # 4× spatial refinement
+  z      = 8        # DEM zoom level
+)
+terra::plot(tx_hires, main = "Downscaled TX anomaly (factual)")
+```
+
+---
+
+## Full pipeline at a glance
+
+```{r pipeline-summary, eval=FALSE}
+library(climattR)
+library(terra)
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+Z500 <- rast("z500.nc")
+TX   <- rast("tx.nc")
+event_dates <- seq(as.Date("2023-07-12"), as.Date("2023-07-18"), by = "day")
+
+# ── Step 1: Prepare ───────────────────────────────────────────────────────────
+prep <- prepare_data(Z500, event_dates = event_dates, time_window = 31)
+
+# ── Step 2: Analogues ─────────────────────────────────────────────────────────
+analogs <- analogs_searcher(
+  list(prep$ts_wo_event), list(prep$event),
+  n = 20, periods = c(1951, 1980, 1993, 2022)
+)
+
+# ── Step 3: Bootstrap ─────────────────────────────────────────────────────────
+ts_data <- as_ts(TX)
+bs_tab  <- bs_analogs(ts_data, analogs$analogs_subperiods,
+                      n = 1000, anom = TRUE, ref_period = c(1950, 2022))
+bs_det  <- bs_analogs(ts_data, analogs$analogs_subperiods,
+                      n = 1000, anom = TRUE, ref_period = c(1950, 2022),
+                      detrend = TRUE)
+
+# ── Step 4: Empirical metrics ─────────────────────────────────────────────────
+obs_mean <- mean(bs_tab$observed$var)
+metrics  <- attribution_metrics(bs_tab, threshold = obs_mean, tail = "upper")
+
+# ── Step 5: EVT metrics ───────────────────────────────────────────────────────
+metrics_gev <- evt_metrics(bs_tab, threshold = obs_mean, type = "GEV")
+
+# ── Step 6: Decomposition ─────────────────────────────────────────────────────
+dcmp <- decompose_signal(bs_tab, bs_det)
+
+# ── Step 7: Visualise ─────────────────────────────────────────────────────────
+autoplot(bs_tab, threshold = obs_mean)
+plot_decomposition(dcmp)
+```
+
+---
+
+## Session info
+
+```{r session}
+sessionInfo()
+```

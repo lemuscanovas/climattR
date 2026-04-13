@@ -1,1 +1,1 @@
-utils::globalVariables(c(".",  "x", "y", "var_obj", "var_id", "var_hist", "time_obj", "elev", "sim", "step", "period", "var_event"))
+utils::globalVariables(c(".",  "x", "y", "var_obj", "var_id", "var_hist", "time_obj", "elev", "sim", "step", "period", "var_event", "component", "signal", "ci_low", "ci_high", "val", "var_event", "return_period", "return_level", "rl_low", "rl_high"))

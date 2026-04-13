@@ -49,9 +49,24 @@ bs_spatanalogs <- function(x, analogs, n = 1000,
   } else {
     dat <- rast(x)
   }
-  
-  dat <- dat * 1 # stored in disk (?)
-  
+
+  # Detect and apply scale factor from unit attribute (e.g. "Celsius*10" → /10)
+  # Must be done BEFORE any arithmetic (dat * 1 clears the units attribute)
+  unit_str <- tryCatch(terra::units(dat)[1], error = function(e) "")
+  scale_divisor <- 1
+  if (grepl("\\*", unit_str)) {
+    factor_str <- trimws(sub(".*\\*", "", unit_str))
+    parsed     <- suppressWarnings(as.numeric(factor_str))
+    if (!is.na(parsed) && parsed != 0) {
+      scale_divisor <- parsed
+      message("Unit '", unit_str, "' detected: values divided by ", parsed,
+              " to convert to base unit.")
+      dat <- dat / scale_divisor
+    }
+  }
+
+  dat <- dat * 1 # force in-memory (after unit detection)
+
   time_dat <- as_date(time(dat)) # if hourly it will be converted to daily
   
   if(is.Date(time_dat) == F){
